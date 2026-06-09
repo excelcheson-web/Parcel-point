@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
+  <title id="title">Parcel Point Logo</title>
+  <desc id="desc">Premium purple parcel marker on a dark navy field.</desc>
+  <defs>
+    <linearGradient id="bg" x1="24" x2="136" y1="14" y2="148" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#071427"/>
+    </linearGradient>
+    <linearGradient id="purple" x1="34" x2="128" y1="36" y2="126" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A855F7"/>
+      <stop offset=".48" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="160" rx="36" fill="url(#bg)"/>
+  <path d="M80 24c24.85 0 45 19.36 45 43.25 0 31.67-45 68.75-45 68.75S35 98.92 35 67.25C35 43.36 55.15 24 80 24Z" fill="url(#purple)"/>
+  <path d="M56 60.5 80 47l24 13.5v27L80 101 56 87.5v-27Z" fill="#fff"/>
+  <path d="m56 60.5 24 13.25 24-13.25M80 73.75V101" fill="none" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
