@@ -1,3 +1,5 @@
+export const runtime = 'edge'
+
 import { NextResponse } from 'next/server'
 
 const FALLBACK_ADMIN_USERNAME = 'ParcelAdmin'
