@@ -1,9 +1,9 @@
-export const runtime = 'edge'
-
 import { NextResponse } from 'next/server'
+import { adminAuth } from '@/lib/firebaseAdmin'
 
 const FALLBACK_ADMIN_USERNAME = 'ParcelAdmin'
 const FALLBACK_ADMIN_PASSWORD = 'PP-2026-Admin'
+const ADMIN_UID = 'parcelpoint-admin'
 
 export async function POST(request: Request) {
   try {
@@ -14,16 +14,18 @@ export async function POST(request: Request) {
     const adminUsername = process.env.ADMIN_USERNAME?.trim() || FALLBACK_ADMIN_USERNAME
     const adminPassword = process.env.ADMIN_PASSWORD || FALLBACK_ADMIN_PASSWORD
 
-    const matchesConfiguredCredentials = submittedUsername === adminUsername && submittedPassword === adminPassword
-    const matchesFallbackCredentials =
-      submittedUsername === FALLBACK_ADMIN_USERNAME && submittedPassword === FALLBACK_ADMIN_PASSWORD
+    const isValid =
+      (submittedUsername === adminUsername && submittedPassword === adminPassword) ||
+      (submittedUsername === FALLBACK_ADMIN_USERNAME && submittedPassword === FALLBACK_ADMIN_PASSWORD)
 
-    if (matchesConfiguredCredentials || matchesFallbackCredentials) {
-      return NextResponse.json({ ok: true }, { status: 200 })
+    if (!isValid) {
+      return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 })
     }
 
-    return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 })
-  } catch {
-    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+    const token = await adminAuth.createCustomToken(ADMIN_UID, { admin: true })
+    return NextResponse.json({ ok: true, token }, { status: 200 })
+  } catch (err) {
+    console.error('[admin-auth]', err)
+    return NextResponse.json({ error: 'Server error. Check FIREBASE_SERVICE_ACCOUNT configuration.' }, { status: 500 })
   }
 }

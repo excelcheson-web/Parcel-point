@@ -1,6 +1,8 @@
 ﻿"use client";
 import Image from "next/image";
 import { CURRENCY_OPTIONS, formatCurrencyAmount, getCurrencyLabel } from "@/lib/currency";
+import { auth } from "@/lib/firebase";
+import { signInWithCustomToken, signOut, onAuthStateChanged, getIdTokenResult } from "firebase/auth";
 
 import { useState, useRef, useEffect, useCallback } from "react";
 type ReceiptItem = { description: string; quantity: number; unitPrice?: number; total?: number }
@@ -17,9 +19,6 @@ import SmartWaybillForm from "@/components/SmartWaybillForm";
 import AdminTimelineControlPanel from "@/components/AdminTimelineControlPanel";
 import { buildStoredWaybillFromFormData, createWaybill, getWaybillErrorMessage } from "@/services/waybillService";
 
-const ADMIN_AUTH_KEY = 'parcelpoint_admin_auth'
-const FALLBACK_ADMIN_USERNAME = process.env.NEXT_PUBLIC_ADMIN_USERNAME ?? 'ParcelAdmin'
-const FALLBACK_ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? 'PP-2026-Admin'
 const LAST_RECEIPT_DOC_STORAGE_KEY = 'parcelpoint_last_receipt_doc'
 
 function asSafeText(value: unknown, fallback: string): string {
@@ -279,17 +278,27 @@ export default function AdminPage() {
   const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState('')
 
-  const canUseFallback = useCallback((u: string, p: string) =>
-    u.trim() === FALLBACK_ADMIN_USERNAME && p === FALLBACK_ADMIN_PASSWORD, [])
-
-  const completeLogin = useCallback(() => {
-    setIsAuthenticated(true); setLoginError(''); setLoginPassword('')
-    try { window.sessionStorage.setItem(ADMIN_AUTH_KEY, 'true') } catch {}
+  const completeLogin = useCallback(async (token: string) => {
+    await signInWithCustomToken(auth, token)
+    setLoginError('')
+    setLoginPassword('')
   }, [])
 
   useEffect(() => {
-    try { if (window.sessionStorage.getItem(ADMIN_AUTH_KEY) === 'true') setIsAuthenticated(true) } catch {}
-    setIsAuthReady(true)
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const result = await getIdTokenResult(user)
+          setIsAuthenticated(result.claims.admin === true)
+        } catch {
+          setIsAuthenticated(false)
+        }
+      } else {
+        setIsAuthenticated(false)
+      }
+      setIsAuthReady(true)
+    })
+    return () => unsubscribe()
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -297,22 +306,19 @@ export default function AdminPage() {
     const u = loginUsername.trim(), p = loginPassword
     try {
       const res = await fetch('/api/admin-auth', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({username:u, password:p})
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p }),
       })
-      if (!res.ok) {
-        if (canUseFallback(u,p)) { completeLogin(); return }
-        setLoginError('Invalid username or password'); return
-      }
-      completeLogin()
+      if (!res.ok) { setLoginError('Invalid username or password'); return }
+      const { token } = await res.json()
+      await completeLogin(token)
     } catch {
-      if (canUseFallback(u,p)) { completeLogin(); return }
       setLoginError('Unable to login right now. Please try again.')
     }
   }
 
-  const handleLogout = () => {
-    try { window.sessionStorage.removeItem(ADMIN_AUTH_KEY) } catch {}
+  const handleLogout = async () => {
+    try { await signOut(auth) } catch {}
     setIsAuthenticated(false); setLoginUsername(''); setLoginPassword(''); setLoginError('')
   }
 

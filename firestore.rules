@@ -1,0 +1,35 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    match /waybills/{waybillId} {
+      // Public shipment tracking — anyone with the waybill ID can read it
+      allow get: if true;
+
+      // List queries blocked — prevents unauthenticated callers from dumping all waybills
+      allow list: if isAdmin();
+
+      // Create: admin only; document ID must match the waybillNumber field
+      allow create: if isAdmin()
+                    && request.resource.data.waybillNumber is string
+                    && request.resource.data.waybillNumber == waybillId;
+
+      // Update: admin only; waybillNumber cannot be changed after creation
+      allow update: if isAdmin()
+                    && request.resource.data.waybillNumber == resource.data.waybillNumber;
+
+      // Delete: admin only
+      allow delete: if isAdmin();
+    }
+
+    // Deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
