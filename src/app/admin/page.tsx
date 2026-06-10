@@ -1,7 +1,7 @@
 ﻿"use client";
 import Image from "next/image";
 import { CURRENCY_OPTIONS, formatCurrencyAmount, getCurrencyLabel } from "@/lib/currency";
-import { auth } from "@/lib/firebase";
+import { getFirebaseAuth } from "@/lib/firebase";
 import { signInWithCustomToken, signOut, onAuthStateChanged, getIdTokenResult } from "firebase/auth";
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -279,13 +279,13 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('')
 
   const completeLogin = useCallback(async (token: string) => {
-    await signInWithCustomToken(auth, token)
+    await signInWithCustomToken(getFirebaseAuth(), token)
     setLoginError('')
     setLoginPassword('')
   }, [])
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (user) => {
       if (user) {
         try {
           const result = await getIdTokenResult(user)
@@ -318,7 +318,7 @@ export default function AdminPage() {
   }
 
   const handleLogout = async () => {
-    try { await signOut(auth) } catch {}
+    try { await signOut(getFirebaseAuth()) } catch {}
     setIsAuthenticated(false); setLoginUsername(''); setLoginPassword(''); setLoginError('')
   }
 

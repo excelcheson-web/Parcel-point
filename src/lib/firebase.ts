@@ -33,7 +33,12 @@ if (missingFirebaseEnvKeys.length > 0) {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
-export const auth = getAuth(app);
+
+// Deferred — getAuth throws synchronously with an invalid/empty API key, which
+// breaks build-time module evaluation when env vars are not set.
+export function getFirebaseAuth() {
+  return getAuth(app);
+}
 
 export const firebaseConfigState = {
   isConfigured: missingFirebaseEnvKeys.length === 0,
