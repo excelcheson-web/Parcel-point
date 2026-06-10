@@ -1,5 +1,7 @@
+export const runtime = 'edge'
+
 import { NextResponse } from 'next/server'
-import { adminAuth } from '@/lib/firebaseAdmin'
+import { createFirebaseCustomToken } from '@/lib/firebaseCustomToken'
 
 const FALLBACK_ADMIN_USERNAME = 'ParcelAdmin'
 const FALLBACK_ADMIN_PASSWORD = 'PP-2026-Admin'
@@ -22,10 +24,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 })
     }
 
-    const token = await adminAuth.createCustomToken(ADMIN_UID, { admin: true })
+    const token = await createFirebaseCustomToken(ADMIN_UID, { admin: true })
     return NextResponse.json({ ok: true, token }, { status: 200 })
   } catch (err) {
     console.error('[admin-auth]', err)
-    return NextResponse.json({ error: 'Server error. Check FIREBASE_SERVICE_ACCOUNT configuration.' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Server error. Check FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY.' },
+      { status: 500 }
+    )
   }
 }
