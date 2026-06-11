@@ -278,7 +278,7 @@ async function withTimeout<T>(operation: string, task: Promise<T>, timeoutMs: nu
 async function runFirestoreOperation<T>(
   operation: string,
   runner: () => Promise<T>,
-  options?: { timeoutMs?: number; retries?: number }
+  options?: { timeoutMs?: number; retries?: number; silentKinds?: WaybillServiceErrorKind[] }
 ): Promise<T> {
   ensureFirebaseConfigured(operation);
 
@@ -292,14 +292,16 @@ async function runFirestoreOperation<T>(
     } catch (rawError) {
       const serviceError = toWaybillServiceError(operation, rawError);
 
-      reportWaybillFailure({
-        operation,
-        kind: serviceError.kind,
-        code: serviceError.code,
-        message: serviceError.message,
-        retryable: serviceError.retryable,
-        attempt: attempt + 1,
-      });
+      if (!options?.silentKinds?.includes(serviceError.kind)) {
+        reportWaybillFailure({
+          operation,
+          kind: serviceError.kind,
+          code: serviceError.code,
+          message: serviceError.message,
+          retryable: serviceError.retryable,
+          attempt: attempt + 1,
+        });
+      }
 
       const canRetry = serviceError.retryable && attempt < retries;
       if (!canRetry) {
@@ -697,11 +699,18 @@ async function syncRuntimeState(docRef: DocumentReference, data: Waybill): Promi
         }),
       ...(runtimeWaybill.deliveredDate && { deliveredDate: runtimeWaybill.deliveredDate }),
     });
-    await runFirestoreOperation(
+    // Best-effort, non-blocking persistence: public trackers cannot write
+    // (admin-only rules) and the lookup must never wait on or fail from this —
+    // the locally computed runtime state is returned either way.
+    void runFirestoreOperation(
       'syncRuntimeState:updateDoc',
       () => updateDoc(docRef, updatePayload as Record<string, unknown>),
-      { timeoutMs: FIREBASE_WRITE_TIMEOUT_MS, retries: FIREBASE_WRITE_RETRIES }
-    );
+      { timeoutMs: FIREBASE_WRITE_TIMEOUT_MS, retries: FIREBASE_WRITE_RETRIES, silentKinds: ['permission'] }
+    ).catch((persistError) => {
+      if (!(isWaybillServiceError(persistError) && persistError.kind === 'permission')) {
+        console.warn('[waybillService] runtime state persistence skipped:', persistError);
+      }
+    });
   }
 
   return runtimeWaybill;
@@ -772,16 +781,27 @@ export async function getWaybillByNumber(waybillNumber: string): Promise<Waybill
     return syncRuntimeState(byIdRef, byIdSnap.data() as Waybill);
   }
 
-  // Backward-compatible query by tracking number field
+  // Backward-compatible query by tracking number field. List queries are
+  // admin-only per Firestore rules, so for public trackers a permission
+  // denial here simply means "not found" (the direct doc lookup above is
+  // the public path; new writes always create an alias doc for it).
   const byTracking = query(
     collection(db, WAYBILLS_COLLECTION),
     where('trackingNumber', '==', normalizedLookup)
   );
-  const trackingSnapshot = await runFirestoreOperation(
-    'getWaybillByNumber:getByTrackingQuery',
-    () => getDocs(byTracking),
-    { timeoutMs: FIREBASE_READ_TIMEOUT_MS, retries: FIREBASE_READ_RETRIES }
-  );
+  let trackingSnapshot;
+  try {
+    trackingSnapshot = await runFirestoreOperation(
+      'getWaybillByNumber:getByTrackingQuery',
+      () => getDocs(byTracking),
+      { timeoutMs: FIREBASE_READ_TIMEOUT_MS, retries: FIREBASE_READ_RETRIES, silentKinds: ['permission'] }
+    );
+  } catch (queryError) {
+    if (isWaybillServiceError(queryError) && queryError.kind === 'permission') {
+      return null;
+    }
+    throw queryError;
+  }
   if (trackingSnapshot.empty) return null;
   const firstTracking = trackingSnapshot.docs[0];
   return syncRuntimeState(firstTracking.ref, firstTracking.data() as Waybill);

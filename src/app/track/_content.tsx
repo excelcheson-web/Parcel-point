@@ -757,7 +757,7 @@ export default function TrackContent({ initialId }: { initialId: string }) {
             </nav>
           </div>
           <p className="text-center sm:text-left text-[10px] text-white/20">
-            &copy; {new Date().getFullYear()} Parcel Point Logistics. All rights reserved. &mdash; IATA Agent Code PPX-42710
+            {`© ${new Date().getFullYear()} Parcel Point Logistics. All rights reserved. — IATA Agent Code PPX-42710`}
           </p>
           <p className="text-center sm:text-left text-[10px] text-white/25 mt-1">
             Tracking information is provided based on shipment records available within the Parcel Point logistics network.
