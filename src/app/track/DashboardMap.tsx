@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
+import { resolveTrackingRoute, type TrackingRoutePoint } from '@/lib/trackingRoute'
 import type { StoredWaybill } from '@/lib/types'
 
 const GEO_URL = '/world-atlas-countries.json'
@@ -64,6 +65,10 @@ const CITY_COORDS: Record<string, [number, number]> = {
   'guangdong': [113.26, 23.13], 'china': [104.19, 35.86],
   'india': [78.96, 20.59], 'pakistan': [69.35, 30.38],
   'uae': [53.85, 23.42], 'saudi arabia': [45.08, 23.89],
+  'pvg': [121.81, 31.14], 'nrt': [140.39, 35.77], 'icn': [126.45, 37.46],
+  'bkk': [100.75, 13.69], 'kul': [101.71, 2.75], 'cgk': [106.66, -6.13],
+  'mnl': [121.02, 14.51], 'sgn': [106.66, 10.82],
+  'bom': [72.87, 19.09], 'ruh': [46.70, 24.96], 'tpe': [121.23, 25.08],
   // Americas
   'new york': [-74.01, 40.71], 'jfk': [-73.78, 40.64],
   'los angeles': [-118.24, 34.05], 'lax': [-118.41, 33.94],
@@ -78,30 +83,43 @@ const CITY_COORDS: Record<string, [number, number]> = {
   'bogota': [-74.07, 4.71], 'lima': [-77.04, -12.05],
   'santiago': [-70.67, -33.45], 'usa': [-98.58, 39.83],
   'canada': [-96.80, 56.13], 'brazil': [-51.93, -14.24],
+  'yyz': [-79.63, 43.68], 'mex': [-99.07, 19.44], 'gru': [-46.47, -23.44],
+  'eze': [-58.54, -34.82], 'scl': [-70.79, -33.39], 'bog': [-74.15, 4.70],
+  'lim': [-77.11, -12.02], 'caracas': [-66.90, 10.48], 'ccs': [-66.99, 10.60],
   // Oceania
   'sydney': [151.21, -33.87], 'melbourne': [144.96, -37.81],
   'brisbane': [153.03, -27.47], 'perth': [115.86, -31.95],
   'auckland': [174.76, -36.85], 'australia': [133.78, -25.27],
+  // Europe airport codes and additional dropdown cities
+  'lhr': [-0.45, 51.47], 'fra': [8.57, 50.04], 'ams': [4.76, 52.31],
+  'mxp': [8.73, 45.63], 'bru': [4.48, 50.90], 'zrh': [8.55, 47.46],
+  'vie': [16.57, 48.11], 'arn': [17.93, 59.65], 'osl': [11.10, 60.19],
+  'cph': [12.65, 55.62], 'helsinki': [24.94, 60.17], 'hel': [24.97, 60.32],
+  'waw': [20.97, 52.17], 'prg': [14.26, 50.10], 'bud': [19.26, 47.44],
+  'lis': [-9.14, 38.77], 'ath': [23.95, 37.94], 'dublin': [-6.26, 53.35],
+  'dub': [-6.27, 53.43],
 }
 
-function getCoords(location: string): [number, number] | null {
-  if (!location) return null
-  const norm = location.toLowerCase().replace(/[,]/g, ' ').replace(/\s+/g, ' ').trim()
-  for (const [key, coords] of Object.entries(CITY_COORDS)) {
-    if (norm.includes(key)) return coords
+function getCoords(point: TrackingRoutePoint): [number, number] | null {
+  const candidates = [point.city, point.code, point.country, point.label, point.raw].filter(Boolean).join(' ')
+  const norm = candidates.toLowerCase().replace(/[,/()]/g, ' ').replace(/\s+/g, ' ').trim()
+  const tokens = norm.split(' ')
+  for (const [rawKey, coords] of Object.entries(CITY_COORDS)) {
+    const key = rawKey.toLowerCase()
+    if (tokens.includes(key) || norm.includes(key)) return coords
   }
   return null
 }
 
 // Manual Mercator projection matching react-simple-maps defaults
 // scale=147, center=[0, PROJ_CENTER_LAT], translate=[MAP_W/2, MAP_H/2]
-function project(lng: number, lat: number): [number, number] {
+function project(lng: number, lat: number, scale: number): [number, number] {
   const PI = Math.PI
   const rl = lng * PI / 180
   const rp = lat * PI / 180
   const rc = PROJ_CENTER_LAT * PI / 180
-  const x = PROJ_SCALE * rl
-  const y = -PROJ_SCALE * (Math.log(Math.tan(PI / 4 + rp / 2)) - Math.log(Math.tan(PI / 4 + rc / 2)))
+  const x = scale * rl
+  const y = -scale * (Math.log(Math.tan(PI / 4 + rp / 2)) - Math.log(Math.tan(PI / 4 + rc / 2)))
   return [MAP_W / 2 + x, MAP_H / 2 + y]
 }
 
@@ -125,6 +143,8 @@ export interface DashboardMapProps {
   waybill?: StoredWaybill | null
   state: 'empty' | 'loading' | 'notfound' | 'error' | 'success'
   serviceType?: MapServiceType
+  mapView?: 'map' | 'satellite'
+  zoom?: number
 }
 
 function AirVehicle() {
@@ -157,22 +177,25 @@ function TruckVehicle() {
   )
 }
 
-export default function DashboardMap({ waybill, state, serviceType = 'AIR' }: DashboardMapProps) {
+export default function DashboardMap({ waybill, state, serviceType = 'AIR', mapView = 'map', zoom = 1 }: DashboardMapProps) {
+  const projectionScale = PROJ_SCALE * zoom
+  const isSatellite = mapView === 'satellite'
   const routeData = useMemo(() => {
     if (!waybill) return null
-    const origin = waybill.origin ?? waybill.portOfDeparture ?? ''
-    const dest = waybill.destination ?? waybill.portOfDestination ?? ''
-    const originC = getCoords(origin)
-    const destC = getCoords(dest)
+    const route = resolveTrackingRoute(waybill)
+    const originC = getCoords(route.departure)
+    const destC = getCoords(route.entry)
     if (!originC || !destC) return null
 
-    const fromXY = project(originC[0], originC[1])
-    const toXY = project(destC[0], destC[1])
+    const fromXY = project(originC[0], originC[1], projectionScale)
+    let toXY = project(destC[0], destC[1], projectionScale)
+    const samePoint = Math.abs(fromXY[0] - toXY[0]) < 1 && Math.abs(fromXY[1] - toXY[1]) < 1
+    if (samePoint) toXY = [fromXY[0] + 36, fromXY[1] - 26]
     const dx = toXY[0] - fromXY[0]
     const dy = toXY[1] - fromXY[1]
     const dist = Math.sqrt(dx * dx + dy * dy)
     const midX = (fromXY[0] + toXY[0]) / 2
-    const midY = (fromXY[1] + toXY[1]) / 2 - dist * 0.28
+    const midY = (fromXY[1] + toXY[1]) / 2 - Math.max(dist * 0.28, samePoint ? 38 : 0)
     const ctrl: [number, number] = [midX, midY]
     const arcPath = `M ${fromXY[0]},${fromXY[1]} Q ${midX},${midY} ${toXY[0]},${toXY[1]}`
     const progress = statusToProgress(waybill.currentStatus)
@@ -184,16 +207,21 @@ export default function DashboardMap({ waybill, state, serviceType = 'AIR' }: Da
     const ty = 2 * (1 - t) * (ctrl[1] - fromXY[1]) + 2 * t * (toXY[1] - ctrl[1])
     const angle = Math.atan2(ty, tx) * (180 / Math.PI)
 
-    return { fromXY, toXY, arcPath, vehicleXY, angle, origin, dest }
-  }, [waybill])
+    return { fromXY, toXY, arcPath, vehicleXY, angle, route }
+  }, [projectionScale, waybill])
 
   return (
-    <div className="relative w-full h-full" style={{ background: '#071427' }}>
+    <div
+      className="relative w-full h-full"
+      style={{ background: isSatellite ? '#08120f' : '#071427' }}
+      data-map-view={mapView}
+      data-map-zoom={zoom.toFixed(2)}
+    >
       <ComposableMap
         width={MAP_W}
         height={MAP_H}
         style={{ width: '100%', height: '100%' }}
-        projectionConfig={{ scale: PROJ_SCALE, center: [0, PROJ_CENTER_LAT] as [number, number] }}
+        projectionConfig={{ scale: projectionScale, center: [0, PROJ_CENTER_LAT] as [number, number] }}
       >
         <defs>
           <radialGradient id="mapBgGlow" cx="50%" cy="50%" r="50%">
@@ -201,7 +229,7 @@ export default function DashboardMap({ waybill, state, serviceType = 'AIR' }: Da
             <stop offset="100%" stopColor="transparent" />
           </radialGradient>
           <pattern id="mapDotGrid" width="30" height="30" patternUnits="userSpaceOnUse">
-            <circle cx="15" cy="15" r="0.7" fill="rgba(124,58,237,0.18)" />
+            <circle cx="15" cy="15" r="0.7" fill={isSatellite ? 'rgba(34,197,94,0.14)' : 'rgba(124,58,237,0.18)'} />
           </pattern>
         </defs>
 
@@ -215,12 +243,12 @@ export default function DashboardMap({ waybill, state, serviceType = 'AIR' }: Da
               <Geography
                 key={geo.rsmKey}
                 geography={geo}
-                fill="#0c1d32"
-                stroke="rgba(124,58,237,0.22)"
+                fill={isSatellite ? '#15291f' : '#0c1d32'}
+                stroke={isSatellite ? 'rgba(74,222,128,0.18)' : 'rgba(124,58,237,0.22)'}
                 strokeWidth={0.5}
                 style={{
                   default: { outline: 'none' },
-                  hover: { fill: '#0f2540', outline: 'none' },
+                  hover: { fill: isSatellite ? '#1b3627' : '#0f2540', outline: 'none' },
                   pressed: { outline: 'none' },
                 }}
               />
@@ -254,6 +282,9 @@ export default function DashboardMap({ waybill, state, serviceType = 'AIR' }: Da
             <circle r={16} fill="rgba(16,185,129,0.07)" className="map-marker-ring-delay" />
             <circle r={7} fill="rgba(16,185,129,0.9)" />
             <circle r={3} fill="white" />
+            <text x={0} y={-20} textAnchor="middle" fill="#d1fae5" fontSize={10} fontWeight={700}>
+              {routeData.route.departure.city || 'Departure'}
+            </text>
           </g>
         )}
 
@@ -264,6 +295,9 @@ export default function DashboardMap({ waybill, state, serviceType = 'AIR' }: Da
             <circle r={16} fill="rgba(124,58,237,0.09)" className="map-marker-ring" />
             <circle r={7} fill="rgba(124,58,237,0.95)" />
             <circle r={3} fill="white" />
+            <text x={0} y={-20} textAnchor="middle" fill="#ede9fe" fontSize={10} fontWeight={700}>
+              {routeData.route.entry.city || 'Entry'}
+            </text>
           </g>
         )}
 

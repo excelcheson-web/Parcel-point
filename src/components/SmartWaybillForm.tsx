@@ -276,10 +276,12 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
 
     setIsGenerating(true)
     try {
+      const originLocation = completeFormData.portOfDeparture || getModeLocation(departureCountry, transportMode)
+      const destinationLocation = completeFormData.portOfDestination || getModeLocation(destinationCountry, transportMode)
       const timelineForWaybill = generateLocalShipmentTimeline(
         buildTimelineInput({
-          origin: completeFormData.portOfDeparture || getModeLocation(departureCountry, transportMode),
-          destination: completeFormData.portOfDestination || getModeLocation(destinationCountry, transportMode),
+          origin: originLocation,
+          destination: destinationLocation,
           departureDate: completeFormData.dateOfIssue || completeFormData.departureDate || smartDefaults.dateOfIssue,
           estimatedDeliveryDate: completeFormData.estimatedArrivalDate || completeFormData.estimatedDeliveryDate,
         })
@@ -301,6 +303,8 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
         routeNumber: autoRouteNumber,
         serviceTypeString: serviceType,
         deliveryType,
+        currentStatus: completeFormData.currentStatus || 'Shipment Created',
+        currentLocation: completeFormData.currentLocation || originLocation,
         trackingEvents: localTimelineForWaybill,
       }
       const pdfUrl = await generateWaybillPDF(waybillData)
@@ -929,5 +933,4 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
 }
 
 export default SmartWaybillForm
-
 

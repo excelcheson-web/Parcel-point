@@ -1,10 +1,11 @@
 'use client'
 
-import { Suspense, useCallback, useState, useEffect, useMemo } from 'react'
+import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
 import { COMPANY_CONTACT } from '@/lib/constants'
+import { resolveTrackingRoute } from '@/lib/trackingRoute'
 import type { StoredWaybill } from '@/lib/types'
 import { getWaybillByNumber, getWaybillErrorMessage, normalizeWaybillLookupInput } from '@/services/waybillService'
 import type { MapServiceType } from './DashboardMap'
@@ -44,7 +45,10 @@ function getStep(status?: string): number {
   if (s.includes('delivered')) return 4
   if (s.includes('out for delivery')) return 3
   if (s.includes('customs')) return 2
-  if (s.includes('transit') || s.includes('arrived') || s.includes('dispatch')) return 1
+  if (
+    s.includes('transit') || s.includes('arrived') || s.includes('dispatch') ||
+    s.includes('departed') || s.includes('departure') || s.includes('picked up') || s.includes('collected')
+  ) return 1
   return 0
 }
 
@@ -126,6 +130,9 @@ export default function TrackContent({ initialId }: { initialId: string }) {
   const [result, setResult] = useState<StoredWaybill | null>(null)
   const [searchedValue, setSearchedValue] = useState(normalizedInitial)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [mapView, setMapView] = useState<'map' | 'satellite'>('map')
+  const [mapZoom, setMapZoom] = useState(1)
+  const mapShellRef = useRef<HTMLDivElement | null>(null)
 
   const handleSearch = useCallback(async (value: string, skipDelay = false) => {
     const norm = normalizeWaybillLookupInput(value)
@@ -185,6 +192,25 @@ export default function TrackContent({ initialId }: { initialId: string }) {
     () => [...(result?.trackingEvents ?? [])].sort((a, b) => new Date(b.eventTime).getTime() - new Date(a.eventTime).getTime()),
     [result],
   )
+  const routeInfo = useMemo(() => (result ? resolveTrackingRoute(result) : null), [result])
+
+  const handleZoomIn = useCallback(() => {
+    setMapZoom((value) => Math.min(2, Math.round((value + 0.2) * 10) / 10))
+  }, [])
+
+  const handleZoomOut = useCallback(() => {
+    setMapZoom((value) => Math.max(0.7, Math.round((value - 0.2) * 10) / 10))
+  }, [])
+
+  const handleFullscreen = useCallback(() => {
+    const node = mapShellRef.current
+    if (!node || typeof document === 'undefined') return
+    if (document.fullscreenElement) {
+      void document.exitFullscreen()
+      return
+    }
+    void node.requestFullscreen?.()
+  }, [])
 
   const whatsappHref = `https://wa.me/${COMPANY_CONTACT.whatsapp}`
 
@@ -371,8 +397,8 @@ export default function TrackContent({ initialId }: { initialId: string }) {
                 {([
                   ['Mode', result.transportMode?.replace(/_/g, ' ') ?? serviceType],
                   ['Service', serviceType === 'AIR' ? 'Airway Bill' : serviceType === 'SEA' ? 'Seaway Bill' : 'Door to Door'],
-                  ['Origin', result.origin ?? result.portOfDeparture ?? '—'],
-                  ['Destination', result.destination ?? result.portOfDestination ?? '—'],
+                  ['Origin', routeInfo?.departure.label ?? result.origin ?? result.portOfDeparture ?? '—'],
+                  ['Destination', routeInfo?.entry.label ?? result.destination ?? result.portOfDestination ?? '—'],
                   ['Shipper', result.senderName ?? result.shipperName ?? '—'],
                   ['Receiver', result.receiverName ?? result.consigneeName ?? '—'],
                   ['Weight', result.totalWeight ? `${result.totalWeight} kg` : result.weight ? `${result.weight} kg` : '—'],
@@ -467,7 +493,7 @@ export default function TrackContent({ initialId }: { initialId: string }) {
               </div>
               <p className="text-white/80 text-sm font-semibold mb-1">Tracking number not found.</p>
               <p className="text-white/40 text-xs leading-relaxed mb-4">
-                We could not find a shipment matching <span className="text-white/60 font-mono">{searchedValue}</span>. Please verify the tracking number and try again. If you believe this is an error, contact Parcel Point Logistics support.
+                {errorMessage || 'We could not find a shipment matching'} <span className="text-white/60 font-mono">{searchedValue}</span>. Please verify the tracking number and try again. If you believe this is an error, contact Parcel Point Logistics support.
               </p>
               <div className="flex gap-2 justify-center">
                 <button
@@ -553,10 +579,10 @@ export default function TrackContent({ initialId }: { initialId: string }) {
         </aside>
 
         {/* ── RIGHT PANEL: MAP ─────────────────────────────────────────────── */}
-        <div className="flex-1 relative min-h-72 lg:min-h-0 overflow-hidden">
+        <div ref={mapShellRef} className="flex-1 relative min-h-72 lg:min-h-0 overflow-hidden">
 
           {/* Map fills entire right panel */}
-          <DashboardMap waybill={result} state={state} serviceType={serviceType} />
+          <DashboardMap waybill={result} state={state} serviceType={serviceType} mapView={mapView} zoom={mapZoom} />
 
           {/* Map / Satellite toggle + controls */}
           <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
@@ -566,27 +592,59 @@ export default function TrackContent({ initialId }: { initialId: string }) {
               style={{ border: '1px solid rgba(124,58,237,0.3)', background: 'rgba(11,31,58,0.8)', backdropFilter: 'blur(12px)' }}
             >
               <button
+                type="button"
+                onClick={() => setMapView('map')}
                 className="px-3 py-1.5 transition-colors"
-                style={{ background: 'rgba(124,58,237,0.3)', color: '#A855F7' }}
+                style={{
+                  background: mapView === 'map' ? 'rgba(124,58,237,0.3)' : 'transparent',
+                  color: mapView === 'map' ? '#A855F7' : 'rgba(255,255,255,0.45)',
+                }}
               >
                 Map
               </button>
               <button
-                className="px-3 py-1.5 transition-colors text-white/35 hover:text-white/60"
+                type="button"
+                onClick={() => setMapView('satellite')}
+                className="px-3 py-1.5 transition-colors hover:text-white/70"
+                style={{
+                  background: mapView === 'satellite' ? 'rgba(34,197,94,0.2)' : 'transparent',
+                  color: mapView === 'satellite' ? '#86efac' : 'rgba(255,255,255,0.45)',
+                }}
               >
                 Satellite
               </button>
             </div>
             {/* Zoom & fullscreen */}
-            {['+', '−', '⊠'].map(sym => (
-              <button
-                key={sym}
-                className="w-8 h-8 flex items-center justify-center rounded-xl text-sm font-bold text-white/50 transition-all hover:text-white hover:scale-110"
-                style={{ background: 'rgba(11,31,58,0.75)', border: '1px solid rgba(124,58,237,0.18)', backdropFilter: 'blur(12px)' }}
-              >
-                {sym}
-              </button>
-            ))}
+            <button
+              type="button"
+              aria-label="Zoom in"
+              title="Zoom in"
+              onClick={handleZoomIn}
+              className="w-8 h-8 flex items-center justify-center rounded-xl text-sm font-bold text-white/50 transition-all hover:text-white hover:scale-110"
+              style={{ background: 'rgba(11,31,58,0.75)', border: '1px solid rgba(124,58,237,0.18)', backdropFilter: 'blur(12px)' }}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              aria-label="Zoom out"
+              title="Zoom out"
+              onClick={handleZoomOut}
+              className="w-8 h-8 flex items-center justify-center rounded-xl text-sm font-bold text-white/50 transition-all hover:text-white hover:scale-110"
+              style={{ background: 'rgba(11,31,58,0.75)', border: '1px solid rgba(124,58,237,0.18)', backdropFilter: 'blur(12px)' }}
+            >
+              -
+            </button>
+            <button
+              type="button"
+              aria-label="Fullscreen map"
+              title="Fullscreen map"
+              onClick={handleFullscreen}
+              className="w-8 h-8 flex items-center justify-center rounded-xl text-xs font-bold text-white/50 transition-all hover:text-white hover:scale-110"
+              style={{ background: 'rgba(11,31,58,0.75)', border: '1px solid rgba(124,58,237,0.18)', backdropFilter: 'blur(12px)' }}
+            >
+              []
+            </button>
           </div>
 
           {/* Location popup — top-left overlay */}
@@ -673,7 +731,7 @@ export default function TrackContent({ initialId }: { initialId: string }) {
                   border: '1px solid rgba(124,58,237,0.22)',
                   backdropFilter: 'blur(18px)',
                   boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-                  width: '190px',
+                  width: '230px',
                 }}
               >
                 <div className="flex items-center gap-2 mb-3">
@@ -689,8 +747,8 @@ export default function TrackContent({ initialId }: { initialId: string }) {
                   </div>
                   <div className="min-w-0">
                     <p className="text-[9px] uppercase tracking-wide text-white/30">Origin</p>
-                    <p className="text-white text-[11px] font-semibold leading-snug truncate">
-                      {result.origin ?? result.portOfDeparture ?? '—'}
+                    <p className="text-white text-[11px] font-semibold leading-snug">
+                      {routeInfo?.departure.label ?? result.origin ?? result.portOfDeparture ?? '—'}
                     </p>
                   </div>
                 </div>
@@ -706,6 +764,11 @@ export default function TrackContent({ initialId }: { initialId: string }) {
                     {serviceType === 'D2D' && <TruckIcon className="w-3 h-3" />}
                     {serviceType}
                   </span>
+                  {routeInfo && (
+                    <p className="mt-1.5 text-[9px] leading-snug text-white/35">
+                      {routeInfo.summary}
+                    </p>
+                  )}
                 </div>
 
                 {/* Destination */}
@@ -713,8 +776,8 @@ export default function TrackContent({ initialId }: { initialId: string }) {
                   <div className="w-2 h-2 rounded-full bg-[#7C3AED] shrink-0 mt-0.5" />
                   <div className="min-w-0">
                     <p className="text-[9px] uppercase tracking-wide text-white/30">Destination</p>
-                    <p className="text-white text-[11px] font-semibold leading-snug truncate">
-                      {result.destination ?? result.portOfDestination ?? '—'}
+                    <p className="text-white text-[11px] font-semibold leading-snug">
+                      {routeInfo?.entry.label ?? result.destination ?? result.portOfDestination ?? '—'}
                     </p>
                   </div>
                 </div>
