@@ -60,6 +60,56 @@ export const metadata: Metadata = {
   },
 };
 
+const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Parcel Point Logistics',
+  url: BASE_URL,
+  logo: `${BASE_URL}/parcel-point-logo.png`,
+  contactPoint: [
+    {
+      '@type': 'ContactPoint',
+      telephone: '+63-956-988-3401',
+      contactType: 'customer service',
+      areaServed: 'PH',
+      availableLanguage: 'English',
+    },
+    {
+      '@type': 'ContactPoint',
+      telephone: '+44-839-528-4814',
+      contactType: 'customer service',
+      areaServed: 'GB',
+      availableLanguage: 'English',
+    },
+  ],
+  email: 'hello@parcelpoint.com',
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: '42 Harbor Avenue',
+    addressLocality: 'London',
+    addressCountry: 'GB',
+    addressRegion: 'England',
+  },
+  sameAs: [],
+}
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Parcel Point Logistics',
+  url: BASE_URL,
+  description:
+    'Track parcels in real time, manage international shipments, and access reliable logistics services worldwide.',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: `${BASE_URL}/track/{search_term_string}`,
+    },
+    'query-input': 'required name=search_term_string',
+  },
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -67,6 +117,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${manrope.variable} ${spaceGrotesk.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
+      </head>
       <body className="parcel-point-theme min-h-full flex flex-col" suppressHydrationWarning>
         <LanguageProvider>
           {children}

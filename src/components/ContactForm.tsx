@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 
 type SubmitStatus = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -126,6 +127,14 @@ export default function ContactForm() {
           />
           {errors.message && <p className={errorClass}>{errors.message}</p>}
         </div>
+
+        <p className="text-xs text-white/40 leading-relaxed">
+          By submitting this form you agree to our{' '}
+          <Link href="/privacy" className="text-[#A855F7]/80 hover:text-[#A855F7] underline transition-colors">
+            Privacy Policy
+          </Link>
+          . We will only use your details to respond to your enquiry and will never share them with third parties.
+        </p>
 
         <button
           type="submit"

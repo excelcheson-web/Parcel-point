@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Track Your Parcel',
   description:
-    'Track your parcel in real time with Parcel Point Logistics. Enter your waybill or tracking number to get instant, up-to-date shipment status and delivery updates.',
+    'Track your parcel with Parcel Point Logistics. Enter your waybill or tracking number to get up-to-date shipment status and delivery updates.',
   keywords: [
     'track parcel',
     'track shipment',
@@ -11,18 +11,18 @@ export const metadata: Metadata = {
     'shipment status',
     'cargo tracking',
     'waybill lookup',
-    'real-time tracking',
+    'parcel point tracking',
   ],
   openGraph: {
     title: 'Track Your Parcel | Parcel Point Logistics',
     description:
-      'Track your parcel in real time with Parcel Point Logistics. Enter your waybill or tracking number to get instant, up-to-date shipment status and delivery updates.',
+      'Track your parcel with Parcel Point Logistics. Enter your waybill or tracking number to get up-to-date shipment status and delivery updates.',
     url: 'https://parcelpointlogistics.com/track',
   },
   twitter: {
     title: 'Track Your Parcel | Parcel Point Logistics',
     description:
-      'Track your parcel in real time with Parcel Point Logistics. Enter your waybill or tracking number to get instant, up-to-date shipment status and delivery updates.',
+      'Track your parcel with Parcel Point Logistics. Enter your waybill or tracking number to get up-to-date shipment status and delivery updates.',
   },
   alternates: {
     canonical: 'https://parcelpointlogistics.com/track',

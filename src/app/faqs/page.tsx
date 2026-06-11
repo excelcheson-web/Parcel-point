@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import SiteFooter from '@/components/SiteFooter'
 
 const faqs = [
   {
@@ -126,6 +127,7 @@ export default function FAQsPage() {
           </Link>
         </div>
       </div>
+      <SiteFooter />
     </div>
   )
 }

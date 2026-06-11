@@ -132,12 +132,12 @@ const howItWorks = [
 ]
 
 const techFeatures = [
-  { title: 'Live GPS Tracking', desc: 'Sub-minute position updates on every active shipment' },
-  { title: 'AI Route Optimisation', desc: 'Dynamic re-routing around delays and disruptions' },
-  { title: 'Auto Customs Filing', desc: 'Digital documentation cleared before cargo lands' },
-  { title: 'Instant Alerts', desc: 'Proactive notifications on milestones and exceptions' },
-  { title: 'Secure Documentation', desc: 'Encrypted digital waybills and certificates of origin' },
-  { title: 'Analytics Dashboard', desc: 'Real-time visibility across your full logistics portfolio' },
+  { title: 'Shipment Tracking', desc: 'Status updates on active shipments within our network' },
+  { title: 'Route Management', desc: 'Coordinated routing with real-time exception handling' },
+  { title: 'Customs Documentation', desc: 'Digital documentation support for international shipments' },
+  { title: 'Milestone Notifications', desc: 'Proactive alerts at key shipment milestones and exceptions' },
+  { title: 'Secure Documentation', desc: 'Digital waybills and certificates of origin' },
+  { title: 'Operations Dashboard', desc: 'Consolidated visibility across your active shipments' },
 ]
 
 export default function Home() {
@@ -287,7 +287,7 @@ export default function Home() {
             {[
               { value: '50K+', label: 'Shipments Delivered', sub: 'Globally per year', Icon: PackageCheck },
               { value: '200+', label: 'Countries Served', sub: 'Worldwide network', Icon: Globe2 },
-              { value: '99.7%', label: 'On-Time Delivery', sub: 'Industry-leading rate', Icon: ShieldCheck },
+              { value: '99.8%', label: 'On-Time Delivery', sub: 'Industry-leading rate', Icon: ShieldCheck },
               { value: '24/7', label: 'Expert Support', sub: 'Always available', Icon: Headphones },
             ].map(({ value, label, sub, Icon }, i) => (
               <div key={i} className="flex flex-col items-center text-center px-4 sm:px-8 py-8 gap-3" style={{ borderRight: i < 3 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
@@ -418,7 +418,7 @@ export default function Home() {
                 Technology That<br />Keeps Cargo Moving
               </h2>
               <p className="text-white/55 text-lg mb-10 leading-relaxed">
-                Intelligent routing, real-time data, and automated compliance eliminate friction at every step of the supply chain.
+                Integrated systems, shipment visibility, and documentation support streamline every step of the supply chain.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {techFeatures.map(({ title, desc }) => (
@@ -436,7 +436,7 @@ export default function Home() {
                 ))}
               </div>
               <Link href="/track" className="parcelpoint-button mt-10 px-7 py-3.5 inline-flex items-center gap-2 text-sm font-bold">
-                See Live Tracking <ChevronRight className="h-4 w-4" />
+                Track a Shipment <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
 
@@ -490,13 +490,12 @@ export default function Home() {
                     ))}
                   </div>
 
-                  {/* Live indicator */}
+                  {/* Status indicator */}
                   <div className="flex items-center gap-2 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                     <span className="relative flex h-2 w-2 shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                     </span>
-                    <span className="text-[10px] text-white/35">Live position updated 23s ago</span>
+                    <span className="text-[10px] text-white/35">Tracking active — example display</span>
                   </div>
                 </div>
               </div>

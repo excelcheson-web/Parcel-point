@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import SiteFooter from '@/components/SiteFooter'
 
 export default function PrivacyPage() {
   return (
@@ -109,6 +110,7 @@ export default function PrivacyPage() {
           </div>
         </div>
       </div>
+      <SiteFooter />
     </div>
   )
 }

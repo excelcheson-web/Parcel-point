@@ -1,14 +1,8 @@
 export const runtime = 'edge'
 
-import { redirect } from 'next/navigation'
+import TrackContent from '../_content'
 
-export default async function LegacyTrackRoute({ params }: { params: Promise<{ id: string }> }) {
+export default async function TrackByIdPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const normalized = (id || '').trim()
-  if (!normalized) {
-    redirect('/track')
-  }
-
-  redirect(`/track?query=${encodeURIComponent(normalized)}`)
+  return <TrackContent initialId={decodeURIComponent(id)} />
 }
-
