@@ -299,7 +299,7 @@ function ReceiptPrintView({ data, pdfUrl, onBack, previewMode = false }: Receipt
         {/* Footer band */}
         <div className="border-t border-[#d4deee] px-5 py-2.5" style={{ backgroundColor: `${primaryColor}0a` }}>
           <p className="break-words text-[9px] text-[#80a0c0] text-center italic">
-            {footerMessage || `Computer-generated document. Format: ${fmtLabel}.`}
+            {footerMessage || 'Computer-generated document.'}
           </p>
         </div>
       </article>

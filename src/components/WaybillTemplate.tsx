@@ -90,6 +90,29 @@ async function loadImageAsDataURL(url: string): Promise<string | null> {
   }
 }
 
+// Downsample a large image to at most maxPx on its longest side before handing
+// it to jsPDF. Keeps a PNG with alpha channel intact. Falls back to the original
+// data URL if canvas is unavailable (e.g. SSR).
+async function downsampleForPdf(dataUrl: string, maxPx = 400): Promise<string> {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return dataUrl
+  return new Promise((resolve) => {
+    const img = new window.Image()
+    img.onload = () => {
+      const ratio = Math.min(maxPx / img.naturalWidth, maxPx / img.naturalHeight, 1)
+      if (ratio >= 1) { resolve(dataUrl); return }
+      const canvas = document.createElement('canvas')
+      canvas.width  = Math.round(img.naturalWidth  * ratio)
+      canvas.height = Math.round(img.naturalHeight * ratio)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { resolve(dataUrl); return }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => resolve(dataUrl)
+    img.src = dataUrl
+  })
+}
+
 function makeBarcodeDataURL(value: string): string {
   const canvas = document.createElement('canvas')
   JsBarcode(canvas, value, {
@@ -564,6 +587,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   const barcodeDataUrl = makeBarcodeDataURL(trackingNumber)
   const qrDataUrl = await makeQrDataURL(trackUrl)
   const logoImage = await loadImageAsDataURL(data.logoUrl || data.senderLogoUrl || '/parcel-point-logo.png')
+  const fiataImage = await loadImageAsDataURL('/FIATA LOGO RESIZED.png')
 
   // ── Page base ───────────────────────────────────────────────────────────────
   setFill(WHITE)
@@ -676,6 +700,13 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(5.4)
   pdf.text('AUTHENTICATED DOCUMENT', sealX + 8, sealY + 3.9, { charSpace: 0.35 })
+
+  // FIATA logo — placed to the right of the authenticity seal
+  if (fiataImage && !fiataImage.startsWith('data:image/svg')) {
+    try {
+      pdf.addImage(fiataImage, 'PNG', sealX + 54, sealY - 0.5, 20, 7, undefined, 'FAST')
+    } catch { /* skip if image fails */ }
+  }
 
   // Navy→purple gradient divider
   const segments = 64
@@ -975,97 +1006,9 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
     wrapClamp(ev.location, x, metaY + 2.5, colW, 1, 2.4, 'center')
   })
 
-  // ── SHIPMENT ROUTE (origin → current → destination) ────────────────────────
-  const routeY = 197
-  const routeH = 28
-  setFill(NAVY)
-  pdf.roundedRect(M, routeY, W, routeH, 3, 3, 'F')
-  setText([148, 163, 190])
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(5.6)
-  pdf.text('SHIPMENT ROUTE', M + 6, routeY + 5.6, { charSpace: 0.6 })
-  setText([196, 181, 253])
-  pdf.text(`TRANSIT PROGRESS ${progressPct}% COMPLETE`, pageW - M - 6, routeY + 5.6, { align: 'right', charSpace: 0.3 })
-
-  const routeLineY = routeY + 13.5
-  const routeX0 = M + 18
-  const routeX1 = pageW - M - 18
-  // Dashed route line with purple glow
-  setStroke([60, 48, 110])
-  pdf.setLineWidth(1.6)
-  pdf.line(routeX0, routeLineY, routeX1, routeLineY)
-  setStroke([168, 130, 245])
-  pdf.setLineWidth(0.55)
-  pdf.setLineDashPattern([2.2, 1.6], 0)
-  pdf.line(routeX0, routeLineY, routeX1, routeLineY)
-  pdf.setLineDashPattern([], 0)
-
-  // Origin + destination pins
-  const drawPin = (x: number, label: string, place: string, align: 'left' | 'right') => {
-    setFill(NAVY)
-    setStroke([168, 130, 245])
-    pdf.setLineWidth(0.55)
-    pdf.circle(x, routeLineY, 1.9, 'FD')
-    setFill([196, 181, 253])
-    pdf.circle(x, routeLineY, 0.7, 'F')
-    setText([148, 163, 190])
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(4.6)
-    const lx = align === 'left' ? x - 1.9 : x + 1.9
-    pdf.text(label, lx, routeLineY - 4.4, { align, charSpace: 0.3 })
-    setText(WHITE)
-    pdf.setFontSize(6.8)
-    pdf.text(clampLine(place, 56), lx, routeLineY + 7.2, { align })
-  }
-  drawPin(routeX0, 'ORIGIN', origin, 'left')
-  drawPin(routeX1, 'DESTINATION', destination, 'right')
-
-  // Glowing current-position indicator
-  const progress = clampNumber(transitProgress, 0.06, 0.94)
-  const curX = routeX0 + (routeX1 - routeX0) * progress
-  setStroke([110, 80, 180])
-  pdf.setLineWidth(0.5)
-  pdf.circle(curX, routeLineY, 4.4, 'S')
-  setStroke([150, 110, 220])
-  pdf.circle(curX, routeLineY, 3.2, 'S')
-  setFill(PURPLE)
-  pdf.circle(curX, routeLineY, 2.1, 'F')
-  setFill(WHITE)
-  pdf.circle(curX, routeLineY, 0.75, 'F')
-  const curLabelX = Math.min(Math.max(curX, M + 52), pageW - M - 52)
-  setText([196, 181, 253])
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(5.6)
-  pdf.text(clampLine(currentLocation.toUpperCase(), 70), curLabelX, routeLineY - 4.4, { align: 'center', charSpace: 0.3 })
-
-  const routeMetricY = routeY + 23.1
-  const routeMetricW = 48
-  const routeMetricGap = 4
-  const routeMetricX = M + 20
-  const routeMetricValues = [
-    ['DISTANCE TRAVELED', formatDistance(distanceTraveledKm)],
-    ['DISTANCE REMAINING', formatDistance(distanceRemainingKm)],
-    ['EST. TRANSIT PROGRESS', `${progressPct}% Complete`],
-  ]
-  routeMetricValues.forEach(([label, value], index) => {
-    const x = routeMetricX + index * (routeMetricW + routeMetricGap)
-    setFill([16, 32, 58])
-    setStroke([76, 57, 133])
-    pdf.setLineWidth(0.2)
-    pdf.roundedRect(x, routeMetricY, routeMetricW, 4.6, 1.5, 1.5, 'FD')
-    setText([148, 163, 190])
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(3.7)
-    pdf.text(label, x + 2, routeMetricY + 1.9, { charSpace: 0.1 })
-    setText([226, 232, 240])
-    pdf.setFont('courier', 'bold')
-    pdf.setFontSize(4.5)
-    pdf.text(clampLine(value, routeMetricW - 4), x + 2, routeMetricY + 3.9)
-  })
-
   // ── PACKAGE CONTENTS ────────────────────────────────────────────────────────
-  sectionTitle('Package Contents', 230)
-  const tableY = 233
+  sectionTitle('Package Contents', 202)
+  const tableY = 205
   const cols = [
     { label: 'NO.', w: 9, align: 'left' as const },
     { label: 'DESCRIPTION', w: 75, align: 'left' as const },
@@ -1137,7 +1080,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   pdf.text(declaredValue > 0 ? formatMoney(declaredValue, currency) : '—', M + W - 2, rowY + 3.5, { align: 'right' })
 
   // ── SPECIAL INSTRUCTIONS + TERMS ────────────────────────────────────────────
-  const notesY = 258.5
+  const notesY = 230.5
   const notesH = 12.5
   const notesW = W * 0.58
   setFill(WHITE)
@@ -1173,12 +1116,14 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   )
 
   // ── SIGNATURES ──────────────────────────────────────────────────────────────
-  const sigY = 272.2
+  const sigY = 244.2
   const sigH = 14.5
   const sigW = (W - 8) / 3
   const senderSig = await loadImageAsDataURL(data.senderSignatureUrl || "/SENDER'S SIGNATURE.png")
   const carrierSig = await loadImageAsDataURL('/Signature.png')
-  const stampImg = await loadImageAsDataURL(data.officialStampUrl || '/LOGISTICS STAMP.png')
+  const rawStampImg = await loadImageAsDataURL(data.officialStampUrl || '/LOGISTICS STAMP.png')
+  // Downsample large stamp PNGs so jsPDF can embed them without failing silently
+  const stampImg = rawStampImg ? await downsampleForPdf(rawStampImg, 350) : null
 
   const drawSignature = (x: number, label: string, img: string | null, stamp?: string | null, placeholder?: string) => {
     setFill(WHITE)

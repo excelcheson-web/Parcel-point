@@ -678,7 +678,7 @@ async function generateClassicPDF(data: DocumentConfig, theme: BrandTheme, logoD
 
   // Footer strip
   applyFill(pdf, theme.primary); pdf.rect(0, ph-2.5, pw, 2.5, 'F')
-  drawCenteredFooter(pdf, d.footerMessage, theme, pw, ph, m, 'Computer-generated document - Premium Corporate Format.')
+  drawCenteredFooter(pdf, d.footerMessage, theme, pw, ph, m, 'Computer-generated document.')
 
   return pdf
 }
@@ -900,7 +900,7 @@ async function generateModernPDF(data: DocumentConfig, theme: BrandTheme, logoDa
   await drawQrBarFooter(pdf, d, data, theme, m, cw, y)
 
   applyFill(pdf, theme.primary); pdf.rect(0, ph-1.5, pw, 1.5, 'F')
-  drawCenteredFooter(pdf, d.footerMessage, theme, pw, ph, m, 'Computer-generated document - Modern Brand Format.')
+  drawCenteredFooter(pdf, d.footerMessage, theme, pw, ph, m, 'Computer-generated document.')
   return pdf
 }
 
@@ -1096,7 +1096,7 @@ async function generateMinimalPDF(data: DocumentConfig, theme: BrandTheme, logoD
   }
   await drawQrBarFooter(pdf, d, data, theme, m, cw, y)
 
-  drawCenteredFooter(pdf, d.footerMessage, theme, pw, ph, m, 'Computer-generated document - Luxury Minimal Format.')
+  drawCenteredFooter(pdf, d.footerMessage, theme, pw, ph, m, 'Computer-generated document.')
   return pdf
 }
 
@@ -1390,7 +1390,7 @@ async function generateCompactPosPDF(data: DocumentConfig, theme: BrandTheme, lo
   const footerLines = limitedLines(pdf, footerText, rw-6, 2)
   ensureSpace(footerLines.length*3.4+8)
   pdf.text(footerLines, cx, y, {align:'center'}); y+=footerLines.length*3.4+2
-  pdf.setFontSize(6); pdf.text('Computer-generated - Compact POS Format', cx, y, {align:'center'})
+  pdf.setFontSize(6); pdf.text('Computer-generated document', cx, y, {align:'center'})
 
   return pdf
 }

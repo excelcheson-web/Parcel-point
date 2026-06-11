@@ -734,7 +734,7 @@ export async function createWaybill(waybill: Waybill) {
   });
 
   const sanitizedPayload = sanitizeForFirestoreWrite(payload);
-  console.log('[createWaybill] Firestore keys:', Object.keys(sanitizedPayload as Record<string, unknown>));
+  const normalizedTrackingNumber = normalizeWaybillLookupInput(payload.trackingNumber || normalizedWaybillNumber);
 
   const docRef = doc(db, WAYBILLS_COLLECTION, normalizedWaybillNumber);
   await runFirestoreOperation(
@@ -742,6 +742,19 @@ export async function createWaybill(waybill: Waybill) {
     () => setDoc(docRef, sanitizedPayload as Waybill),
     { timeoutMs: FIREBASE_WRITE_TIMEOUT_MS, retries: FIREBASE_WRITE_RETRIES }
   );
+
+  // If the tracking number differs from the waybill number, also store the same
+  // document under the tracking number ID. This lets getWaybillByNumber resolve
+  // tracking-number lookups via a direct getDoc (which is publicly allowed) instead
+  // of falling back to a list query (which requires admin auth per Firestore rules).
+  if (normalizedTrackingNumber && normalizedTrackingNumber !== normalizedWaybillNumber) {
+    const trackingRef = doc(db, WAYBILLS_COLLECTION, normalizedTrackingNumber);
+    await runFirestoreOperation(
+      'createWaybill:setTrackingAlias',
+      () => setDoc(trackingRef, sanitizedPayload as Waybill),
+      { timeoutMs: FIREBASE_WRITE_TIMEOUT_MS, retries: FIREBASE_WRITE_RETRIES }
+    );
+  }
 }
 
 export async function getWaybillByNumber(waybillNumber: string): Promise<Waybill | null> {

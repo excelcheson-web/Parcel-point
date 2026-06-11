@@ -70,7 +70,15 @@ export function getCurrencySymbol(code: string | undefined): string {
   return getCurrencyMeta(code).symbol
 }
 
+// jsPDF Helvetica only covers Latin-1 (ISO 8859-1). Symbols outside that range
+// render as garbage (e.g. ₱ → ±, ₩ → garbage). Map those to safe ASCII prefixes.
+const PDF_SAFE_SYMBOL_OVERRIDES: Partial<Record<string, string>> = {
+  PHP: 'PHP ',
+  KRW: 'KRW ',
+}
+
 export function getCurrencySymbolForPdf(code: string | undefined): string {
+  if (code && code in PDF_SAFE_SYMBOL_OVERRIDES) return PDF_SAFE_SYMBOL_OVERRIDES[code]!
   return getCurrencyMeta(code).symbol
 }
 
