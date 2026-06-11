@@ -141,7 +141,7 @@ const techFeatures = [
 ]
 
 export default function Home() {
-  const whatsappHref = `https://wa.me/${COMPANY_CONTACT.phone.replace(/\D/g, '')}`
+  const whatsappHref = `https://wa.me/${COMPANY_CONTACT.whatsapp}`
   const router = useRouter()
   const { t } = useTranslation()
   const [trackingNumber, setTrackingNumber] = useState('')

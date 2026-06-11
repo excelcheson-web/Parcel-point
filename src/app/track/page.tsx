@@ -181,7 +181,7 @@ function TrackPageContent() {
     [result],
   )
 
-  const whatsappHref = `https://wa.me/${COMPANY_CONTACT.phone.replace(/\D/g, '')}`
+  const whatsappHref = `https://wa.me/${COMPANY_CONTACT.whatsapp}`
 
   return (
     <div

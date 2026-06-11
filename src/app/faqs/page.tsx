@@ -43,7 +43,7 @@ const faqs = [
   },
   {
     question: "How can I contact customer support?",
-    answer: "Our customer support is available 24/7 via multiple channels: Live Chat on our website, email at hello@parcelpoint.com, phone at +234 800 727 2357, or through our Help Center with detailed guides and tutorials."
+    answer: "Our customer support is available 24/7 via multiple channels: Live Chat on our website, email at hello@parcelpoint.com, phone at +63 956 988 3401 (PH) or +44 839 528 4814 (UK), or through our Help Center with detailed guides and tutorials."
   }
 ]
 

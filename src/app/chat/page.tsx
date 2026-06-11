@@ -52,7 +52,7 @@ export default function ChatPage() {
       return "Delivery times vary by service: Air Freight (1-3 days), Ocean Freight (10-30 days), Road Freight (1-5 days). Express options are available for urgent shipments."
     }
     else if (lowerMessage.includes('contact') || lowerMessage.includes('support') || lowerMessage.includes('help') || lowerMessage.includes('human')) {
-      return "You can reach our 24/7 support team at:\nPhone: +234 800 727 2357\nEmail: hello@parcelpoint.com\nLive Chat: Available now\nOr visit our Help Center for FAQs."
+      return "You can reach our 24/7 support team at:\nPhone: +63 956 988 3401 (PH)  |  +44 839 528 4814 (UK)\nWhatsApp: +63 956 988 3401\nEmail: hello@parcelpoint.com\nLive Chat: Available now\nOr visit our Help Center for FAQs."
     }
     else if (lowerMessage.includes('service') || lowerMessage.includes('offer') || lowerMessage.includes('what do you do')) {
       return "We offer comprehensive logistics services:\nAir Freight\nOcean Freight\nRoad Freight\nWarehousing\nInternational Shipping\nCustoms Clearance\nWhich service interests you?"
@@ -249,7 +249,7 @@ export default function ChatPage() {
               </button>
             </div>
             <p className="text-white/40 text-xs mt-2 text-center">
-              Powered by Parcel Point AI • For urgent matters, call +234 800 727 2357
+              Powered by Parcel Point AI — For urgent matters, call +63 956 988 3401
             </p>
           </div>
         </div>

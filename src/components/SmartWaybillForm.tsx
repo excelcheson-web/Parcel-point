@@ -562,7 +562,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
               value={userInput.shipperPhone || ''}
               onChange={(e) => updateUserInput('shipperPhone', e.target.value)}
               className="w-full px-4 py-3 min-h-[48px] border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED] transition"
-              placeholder="+234 800 727 2357"
+              placeholder="+63 956 988 3401"
             />
           </div>
         </div>
@@ -608,7 +608,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
               value={userInput.consigneePhone || ''}
               onChange={(e) => updateUserInput('consigneePhone', e.target.value)}
               className="w-full px-4 py-3 min-h-[48px] border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED] transition"
-              placeholder="+234 800 727 2357"
+              placeholder="+63 956 988 3401"
             />
           </div>
           <div>

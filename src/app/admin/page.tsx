@@ -878,7 +878,7 @@ export default function AdminPage() {
                         <div>
                           <label className={labelCls}>Phone</label>
                           <input type="tel" value={companyPhone} onChange={e => setCompanyPhone(e.target.value)}
-                            className={inputCls} placeholder="+234 800 …" />
+                            className={inputCls} placeholder="+63 956 988 3401" />
                         </div>
                       </div>
                       <div>
@@ -950,7 +950,7 @@ export default function AdminPage() {
                   <div>
                     <label className={labelCls}>Phone Number</label>
                     <input type="tel" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)}
-                      className={inputCls} placeholder="+234 800 …" />
+                      className={inputCls} placeholder="+63 956 988 3401" />
                   </div>
                   <div>
                     <label className={labelCls}>Email Address</label>

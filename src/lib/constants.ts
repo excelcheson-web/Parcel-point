@@ -1,14 +1,14 @@
 export const GREENHILLS_CONFIG = {
   name: 'Parcel Point Billing',
   logo: '/parcel-point-logo.png',
-  phone: '+44 20 7946 0321',
+  phone: '+63 956 988 3401  |  +44 839 528 4814',
   address: 'Parcel Point Operations Hub, 42 Harbor Avenue, Singapore'
 } as const
 
 export const SKYSHIP_CONFIG = {
   name: 'Parcel Point',
   logo: '/parcel-point-logo.png',
-  phone: '+44 20 7946 0321',
+  phone: '+63 956 988 3401  |  +44 839 528 4814',
   address: 'Parcel Point House, 42 Harbor Avenue, London, United Kingdom',
   iataCode: 'PPX-42710',
   agentCode: 'PP-AGENT-001',
@@ -20,7 +20,13 @@ export const LEGACY_COMPANY_CONFIG = SKYSHIP_CONFIG
 
 // Company contact information for use across all pages
 export const COMPANY_CONTACT = {
-  phone: '+44 20 7946 0321',
+  // Display string showing both numbers
+  phone: '+63 956 988 3401  |  +44 839 528 4814',
+  // Individual numbers for tel: links and single-number contexts
+  phonePH: '+63 956 988 3401',
+  phoneUK: '+44 839 528 4814',
+  // WhatsApp uses Philippines number only (digits only, no +, for wa.me URL)
+  whatsapp: '639569883401',
   address: 'Parcel Point House, 42 Harbor Avenue, London',
   email: 'hello@parcelpoint.com'
 } as const

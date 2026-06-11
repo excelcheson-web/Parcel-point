@@ -100,7 +100,7 @@ export default function PrivacyPage() {
               <p className="leading-relaxed">
                 For privacy-related questions or requests, contact our Data Protection Officer:<br />
                 Email: privacy@parcelpoint.com<br />
-                Phone: +234 800 727 2357<br />
+                Phone: +63 956 988 3401 (PH) | +44 839 528 4814 (UK)<br />
                 Address: Parcel Point House, 42 Harbor Avenue
               </p>
             </section>

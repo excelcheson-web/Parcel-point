@@ -88,7 +88,7 @@ export default function TermsPage() {
               <p className="leading-relaxed">
                 For questions about these Terms &amp; Conditions, please contact us at:<br />
                 Email: legal@parcelpoint.com<br />
-                Phone: +234 800 727 2357
+                Phone: +63 956 988 3401 (PH) | +44 839 528 4814 (UK)
               </p>
             </section>
 

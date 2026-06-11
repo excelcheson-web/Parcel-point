@@ -105,7 +105,7 @@ export default function CookiesPage() {
               <p className="leading-relaxed">
                 If you have questions about our Cookie Policy, please contact us:<br />
                 Email: privacy@parcelpoint.com<br />
-                Phone: +234 800 727 2357
+                Phone: +63 956 988 3401 (PH) | +44 839 528 4814 (UK)
               </p>
             </section>
 
