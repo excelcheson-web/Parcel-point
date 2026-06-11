@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
 import type { StoredWaybill } from '@/lib/types'
 
-const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
+const GEO_URL = '/world-atlas-countries.json'
 const MAP_W = 800
 const MAP_H = 500
 const PROJ_SCALE = 147

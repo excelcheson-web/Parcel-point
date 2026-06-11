@@ -3,8 +3,6 @@ export const runtime = 'edge'
 import { NextResponse } from 'next/server'
 import { createFirebaseCustomToken } from '@/lib/firebaseCustomToken'
 
-const FALLBACK_ADMIN_USERNAME = 'ParcelAdmin'
-const FALLBACK_ADMIN_PASSWORD = 'PP-2026-Admin'
 const ADMIN_UID = 'parcelpoint-admin'
 
 export async function POST(request: Request) {
@@ -13,12 +11,17 @@ export async function POST(request: Request) {
     const submittedUsername = typeof username === 'string' ? username.trim() : ''
     const submittedPassword = typeof password === 'string' ? password : ''
 
-    const adminUsername = process.env.ADMIN_USERNAME?.trim() || FALLBACK_ADMIN_USERNAME
-    const adminPassword = process.env.ADMIN_PASSWORD || FALLBACK_ADMIN_PASSWORD
+    const adminUsername = process.env.ADMIN_USERNAME?.trim()
+    const adminPassword = process.env.ADMIN_PASSWORD
 
-    const isValid =
-      (submittedUsername === adminUsername && submittedPassword === adminPassword) ||
-      (submittedUsername === FALLBACK_ADMIN_USERNAME && submittedPassword === FALLBACK_ADMIN_PASSWORD)
+    if (!adminUsername || !adminPassword) {
+      return NextResponse.json(
+        { error: 'Server configuration error. ADMIN_USERNAME and ADMIN_PASSWORD must be set.' },
+        { status: 500 }
+      )
+    }
+
+    const isValid = submittedUsername === adminUsername && submittedPassword === adminPassword
 
     if (!isValid) {
       return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 })

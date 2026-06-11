@@ -15,9 +15,49 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
 });
 
+const BASE_URL = 'https://parcelpointlogistics.com'
+const OG_IMAGE = '/parcel-point-hero-logistics.png'
+
 export const metadata: Metadata = {
-  title: "Parcel Point - Premium Parcel Logistics",
-  description: "Parcel Point delivers premium parcel logistics, waybill generation, receipt management, and real-time shipment tracking.",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: 'Parcel Point Logistics | Global Shipping and Parcel Tracking',
+    template: '%s | Parcel Point Logistics',
+  },
+  description:
+    'Track parcels in real time, manage international shipments, and access reliable logistics services worldwide with Parcel Point Logistics.',
+  keywords: [
+    'parcel tracking',
+    'international shipping',
+    'global logistics',
+    'freight services',
+    'shipping company',
+    'cargo delivery',
+    'air freight',
+    'ocean freight',
+    'parcel point logistics',
+  ],
+  authors: [{ name: 'Parcel Point Logistics', url: BASE_URL }],
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
+  openGraph: {
+    type: 'website',
+    siteName: 'Parcel Point Logistics',
+    url: BASE_URL,
+    title: 'Parcel Point Logistics | Global Shipping and Parcel Tracking',
+    description:
+      'Track parcels in real time, manage international shipments, and access reliable logistics services worldwide with Parcel Point Logistics.',
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Parcel Point Logistics' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Parcel Point Logistics | Global Shipping and Parcel Tracking',
+    description:
+      'Track parcels in real time, manage international shipments, and access reliable logistics services worldwide with Parcel Point Logistics.',
+    images: [OG_IMAGE],
+  },
+  alternates: {
+    canonical: BASE_URL,
+  },
 };
 
 export default function RootLayout({

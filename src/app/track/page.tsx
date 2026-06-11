@@ -708,6 +708,30 @@ function TrackPageContent() {
           )}
         </div>
       </main>
+
+      {/* ── TRUST FOOTER ─────────────────────────────────────────────────────── */}
+      <footer
+        className="shrink-0 px-4 sm:px-6 py-4"
+        style={{ borderTop: '1px solid rgba(124,58,237,0.18)', background: 'rgba(7,20,39,0.98)' }}
+      >
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-white/35">
+          <div className="flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left">
+            <Image src="/parcel-point-logo.png" alt="Parcel Point Logistics" width={22} height={22} className="rounded-md opacity-60" />
+            <div>
+              <span className="font-semibold text-white/55">Parcel Point Logistics</span>
+              <span className="mx-2 opacity-40">·</span>
+              <span>Parcel Point House, 42 Harbor Avenue, London, United Kingdom</span>
+              <span className="mx-2 opacity-40">·</span>
+              <a href="mailto:hello@parcelpoint.com" className="text-[#A855F7]/70 hover:text-[#A855F7] transition-colors">hello@parcelpoint.com</a>
+            </div>
+          </div>
+          <nav className="flex items-center gap-4 shrink-0">
+            <Link href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-white/60 transition-colors">Terms</Link>
+            <Link href="/contact" className="hover:text-white/60 transition-colors">Contact &amp; Support</Link>
+          </nav>
+        </div>
+      </footer>
     </div>
   )
 }
