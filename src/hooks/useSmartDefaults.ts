@@ -37,6 +37,7 @@ const initialUserInput: Partial<UserInputFields> = {
   insurance: 0,
   airportTaxVat: 0,
   destinationDuty: 0,
+  declaredValue: 0,
   receiverCity: '',
   routeNumber: '',
   paymentStatus: 'NOT PAID',
@@ -335,6 +336,7 @@ export function useSmartDefaults(
       insurance: userInput.insurance,
       airportTaxVat: userInput.airportTaxVat,
       destinationDuty: userInput.destinationDuty,
+      declaredValue: userInput.declaredValue,
       
       // Legacy field mappings for compatibility
       senderName: userInput.shipperName,

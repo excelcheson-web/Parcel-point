@@ -62,11 +62,85 @@ export interface WaybillItem {
   typeOfPkg: 'Box' | 'Pallet' | 'Carton' | 'Crate' | 'Bag' | 'Other';
   description: string;
   grossWeight: number; // in KG
+  value?: number; // declared value of this line item
   dimensions: {
     length: number;
     width: number;
     height: number;
   }; // in CM
+}
+
+export interface WaybillCurrentLocationDetails {
+  facility?: string;
+  city?: string;
+  stateOrProvince?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  scannedAt?: string;
+  timezone?: string;
+}
+
+export interface WaybillDocumentAuthenticity {
+  documentId?: string;
+  verificationId?: string;
+  verificationCode?: string;
+  qrVerificationCode?: string;
+  checksumHash?: string;
+  digitalSeal?: string;
+  generatedAt?: string;
+  generatedBy?: string;
+}
+
+export interface WaybillRouteMetrics {
+  progressPercent?: number;
+  totalDistanceKm?: number;
+  distanceTraveledKm?: number;
+  distanceRemainingKm?: number;
+  estimatedTransitProgress?: number;
+}
+
+export interface WaybillPackageRecord {
+  packageId?: string;
+  parentWaybillNumber?: string;
+  trackingNumber?: string;
+  description?: string;
+  pieces?: number;
+  weight?: number;
+  status?: string;
+}
+
+export interface WaybillIntegrationReadiness {
+  liveGps?: {
+    provider?: string;
+    deviceId?: string;
+    latitude?: number;
+    longitude?: number;
+    lastPingAt?: string;
+  };
+  warehouseScans?: TrackingEventRecord[];
+  customsScans?: TrackingEventRecord[];
+  carrierIntegration?: {
+    provider?: string;
+    externalTrackingId?: string;
+    lastSyncedAt?: string;
+  };
+  flightIntegration?: {
+    airlineCode?: string;
+    flightNumber?: string;
+    departureAirport?: string;
+    arrivalAirport?: string;
+    scheduledDeparture?: string;
+    scheduledArrival?: string;
+  };
+  vesselIntegration?: {
+    carrierScac?: string;
+    vesselName?: string;
+    voyageNumber?: string;
+    portOfLoading?: string;
+    portOfDischarge?: string;
+    eta?: string;
+  };
 }
 
 // Smart Defaults - Auto-generated system data
@@ -152,6 +226,7 @@ export interface UserInputFields {
   insurance: number;        // Insurance charge
   airportTaxVat: number;    // Airport tax/VAT
   destinationDuty: number;  // Destination duty
+  declaredValue?: number;   // Declared customs value of the shipment
   
   // Optional Override (user can change auto-filled values if needed)
   destinationOverride?: string;
@@ -228,6 +303,9 @@ export interface WaybillFormData {
   firstCarrier?: string;
   routing?: string;
   flightNumber?: string;
+  vesselName?: string;
+  voyageNumber?: string;
+  courierPartner?: string;
   
   // === DATES (Auto-filled / User Override) ===
   departureDate?: string;
@@ -259,6 +337,7 @@ export interface WaybillFormData {
   destinationDuty?: number;
   baseFreight?: number;
   currencyTotal?: number;
+  declaredValue?: number;
   
   // === HANDLING INFORMATION ===
   handlingInformation?: string;
@@ -284,6 +363,46 @@ export interface WaybillFormData {
   currentLocation?: string;
   trackingEvents?: TrackingEventRecord[];
   transitHistory?: TransitEvent[];
+
+  // === SECURITY / AUTHENTICITY LAYER ===
+  documentId?: string;
+  verificationId?: string;
+  verificationCode?: string;
+  qrVerificationCode?: string;
+  checksumHash?: string;
+  digitalSeal?: string;
+  generatedAt?: string;
+  generatedBy?: string;
+  documentAuthenticity?: WaybillDocumentAuthenticity;
+
+  // === CURRENT LOCATION / ROUTE INTELLIGENCE ===
+  currentLocationDetails?: WaybillCurrentLocationDetails;
+  currentFacility?: string;
+  currentCity?: string;
+  currentStateOrProvince?: string;
+  currentCountry?: string;
+  currentLatitude?: number;
+  currentLongitude?: number;
+  currentLocationTimestamp?: string;
+  routeMetrics?: WaybillRouteMetrics;
+  transitProgressPercent?: number;
+  totalDistanceKm?: number;
+  distanceTraveledKm?: number;
+  distanceRemainingKm?: number;
+
+  // === PACKAGE HIERARCHY ===
+  shipmentType?: string;
+  masterWaybillNumber?: string;
+  childPackages?: WaybillPackageRecord[];
+
+  // === FUTURE API READINESS ===
+  integrationReadiness?: WaybillIntegrationReadiness;
+  liveGps?: WaybillIntegrationReadiness['liveGps'];
+  warehouseScans?: TrackingEventRecord[];
+  customsScans?: TrackingEventRecord[];
+  carrierIntegration?: WaybillIntegrationReadiness['carrierIntegration'];
+  flightIntegration?: WaybillIntegrationReadiness['flightIntegration'];
+  vesselIntegration?: WaybillIntegrationReadiness['vesselIntegration'];
   
   // === LEGACY COMPATIBILITY ===
   // Allow any additional fields for backward compatibility
@@ -382,6 +501,26 @@ export interface DocumentConfig {
   signeeName?: string;
   stampUrl?: string;
   receiptFormat?: 'classic' | 'modern' | 'minimal' | 'executive';
+  // Extended business branding
+  companyCaption?: string;
+  companyWebsite?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  // Extended customer info
+  customerPhone?: string;
+  customerEmail?: string;
+  // Extended receipt identifiers
+  paymentDate?: string;
+  transactionReference?: string;
+  orderNumber?: string;
+  invoiceNumber?: string;
+  // Payment status badge
+  paymentStatus?: 'PAID' | 'PENDING' | 'PART_PAYMENT' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
+  // Separate terms from notes
+  receiptTerms?: string;
+  // Footer and generation info
+  footerMessage?: string;
+  generatedBy?: string;
   // Waybill specific data
   waybillData?: WaybillFormData;
 }
@@ -451,4 +590,40 @@ export interface StoredWaybill extends Omit<Partial<WaybillFormData>, 'serviceTy
   trackingEvents?: TrackingEventRecord[];
   deliveryType?: 'DOOR_TO_DOOR' | 'OFFICE_PICKUP';
   timelineOnHold?: boolean;
+
+  documentId?: string;
+  verificationId?: string;
+  verificationCode?: string;
+  qrVerificationCode?: string;
+  checksumHash?: string;
+  digitalSeal?: string;
+  generatedAt?: string;
+  generatedBy?: string;
+  documentAuthenticity?: WaybillDocumentAuthenticity;
+
+  currentLocationDetails?: WaybillCurrentLocationDetails;
+  currentFacility?: string;
+  currentCity?: string;
+  currentStateOrProvince?: string;
+  currentCountry?: string;
+  currentLatitude?: number;
+  currentLongitude?: number;
+  currentLocationTimestamp?: string;
+  routeMetrics?: WaybillRouteMetrics;
+  transitProgressPercent?: number;
+  totalDistanceKm?: number;
+  distanceTraveledKm?: number;
+  distanceRemainingKm?: number;
+
+  shipmentType?: string;
+  masterWaybillNumber?: string;
+  childPackages?: WaybillPackageRecord[];
+
+  integrationReadiness?: WaybillIntegrationReadiness;
+  liveGps?: WaybillIntegrationReadiness['liveGps'];
+  warehouseScans?: TrackingEventRecord[];
+  customsScans?: TrackingEventRecord[];
+  carrierIntegration?: WaybillIntegrationReadiness['carrierIntegration'];
+  flightIntegration?: WaybillIntegrationReadiness['flightIntegration'];
+  vesselIntegration?: WaybillIntegrationReadiness['vesselIntegration'];
 }

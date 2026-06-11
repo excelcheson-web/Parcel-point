@@ -663,6 +663,21 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
               onExpressChange={(value) => updateUserInput('isExpress', value)}
             />
           </div>
+
+          {/* Special Instructions / Delivery Notes */}
+          <div className="pt-2 border-t border-white/20">
+            <label className="block text-sm font-medium text-white/80 mb-1">
+              Special Instructions / Delivery Notes
+            </label>
+            <textarea
+              value={userInput.specialInstructions || ''}
+              onChange={(e) => updateUserInput('specialInstructions', e.target.value)}
+              rows={2}
+              className="w-full px-4 py-3 border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED] transition resize-none"
+              placeholder="e.g. Handle with care. Call receiver 30 minutes before delivery."
+            />
+            <p className="text-xs text-white/40 mt-1">Printed on the waybill in the Special Instructions section.</p>
+          </div>
         </div>
       </div>
 
@@ -729,6 +744,21 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
               className="w-full px-4 py-3 min-h-[48px] border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED] transition"
               placeholder="0.00"
             />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-white/80 mb-1">
+              Declared Value (Customs)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={userInput.declaredValue || 0}
+              onChange={(e) => updateUserInput('declaredValue', parseFloat(e.target.value) || 0)}
+              className="w-full px-4 py-3 min-h-[48px] border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED] transition"
+              placeholder="0.00"
+            />
+            <p className="text-xs text-white/40 mt-1">Shown on the waybill as the declared customs value of the shipment.</p>
           </div>
         </div>
         
