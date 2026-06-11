@@ -14,10 +14,11 @@ service cloud.firestore {
       // List queries blocked — prevents unauthenticated callers from dumping all waybills
       allow list: if isAdmin();
 
-      // Create: admin only; document ID must match the waybillNumber field
+      // Create: admin only; doc ID must match waybillNumber (primary) or trackingNumber (alias)
       allow create: if isAdmin()
                     && request.resource.data.waybillNumber is string
-                    && request.resource.data.waybillNumber == waybillId;
+                    && (request.resource.data.waybillNumber == waybillId
+                        || request.resource.data.trackingNumber == waybillId);
 
       // Update: admin only; waybillNumber cannot be changed after creation
       allow update: if isAdmin()
