@@ -90,25 +90,28 @@ async function loadImageAsDataURL(url: string): Promise<string | null> {
   }
 }
 
-// Downsample a large image to at most maxPx on its longest side before handing
-// it to jsPDF. Keeps a PNG with alpha channel intact. Falls back to the original
-// data URL if canvas is unavailable (e.g. SSR).
-async function downsampleForPdf(dataUrl: string, maxPx = 400): Promise<string> {
+// Normalise an image through canvas before handing it to jsPDF.
+// Always re-encodes via canvas so unusual PNG modes (palette, 16-bit) become
+// standard RGBA, which jsPDF handles reliably. Also downsamples to maxPx if
+// the image is larger. Falls back to the original data URL on canvas failure.
+async function normalizeForPdf(dataUrl: string, maxPx = 400): Promise<string> {
   if (typeof window === 'undefined' || typeof document === 'undefined') return dataUrl
   return new Promise((resolve) => {
     const img = new window.Image()
     img.onload = () => {
       const ratio = Math.min(maxPx / img.naturalWidth, maxPx / img.naturalHeight, 1)
-      if (ratio >= 1) { resolve(dataUrl); return }
+      const w = Math.round(img.naturalWidth  * ratio)
+      const h = Math.round(img.naturalHeight * ratio)
+      if (!w || !h) { resolve(dataUrl); return }
       const canvas = document.createElement('canvas')
-      canvas.width  = Math.round(img.naturalWidth  * ratio)
-      canvas.height = Math.round(img.naturalHeight * ratio)
+      canvas.width  = w
+      canvas.height = h
       const ctx = canvas.getContext('2d')
       if (!ctx) { resolve(dataUrl); return }
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, w, h)
       resolve(canvas.toDataURL('image/png'))
     }
-    img.onerror = () => resolve(dataUrl)
+    img.onerror = () => { console.error('[WaybillPDF] canvas normalise failed for image'); resolve(dataUrl) }
     img.src = dataUrl
   })
 }
@@ -587,7 +590,8 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   const barcodeDataUrl = makeBarcodeDataURL(trackingNumber)
   const qrDataUrl = await makeQrDataURL(trackUrl)
   const logoImage = await loadImageAsDataURL(data.logoUrl || data.senderLogoUrl || '/parcel-point-logo.png')
-  const fiataImage = await loadImageAsDataURL('/FIATA LOGO RESIZED.png')
+  const fiataRaw  = await loadImageAsDataURL('/fiata-logo.png')
+  const fiataImage = fiataRaw ? await normalizeForPdf(fiataRaw, 400) : null
 
   // ── Page base ───────────────────────────────────────────────────────────────
   setFill(WHITE)
@@ -705,7 +709,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   if (fiataImage && !fiataImage.startsWith('data:image/svg')) {
     try {
       pdf.addImage(fiataImage, 'PNG', sealX + 54, sealY - 0.5, 20, 7, undefined, 'FAST')
-    } catch { /* skip if image fails */ }
+    } catch (e) { console.error('[WaybillPDF] addImage fiata-logo failed:', e) }
   }
 
   // Navy→purple gradient divider
@@ -1121,9 +1125,8 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   const sigW = (W - 8) / 3
   const senderSig = await loadImageAsDataURL(data.senderSignatureUrl || "/SENDER'S SIGNATURE.png")
   const carrierSig = await loadImageAsDataURL('/Signature.png')
-  const rawStampImg = await loadImageAsDataURL(data.officialStampUrl || '/LOGISTICS STAMP.png')
-  // Downsample large stamp PNGs so jsPDF can embed them without failing silently
-  const stampImg = rawStampImg ? await downsampleForPdf(rawStampImg, 350) : null
+  const rawStampImg = await loadImageAsDataURL(data.officialStampUrl || '/logistics-stamp.png')
+  const stampImg = rawStampImg ? await normalizeForPdf(rawStampImg, 350) : null
 
   const drawSignature = (x: number, label: string, img: string | null, stamp?: string | null, placeholder?: string) => {
     setFill(WHITE)
@@ -1149,9 +1152,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
     if (stamp && !stamp.startsWith('data:image/svg')) {
       try {
         pdf.addImage(stamp, 'PNG', x + sigW - 14.5, sigY + 2.4, 12, 9.4, undefined, 'FAST')
-      } catch {
-        /* ignore */
-      }
+      } catch (e) { console.error('[WaybillPDF] addImage stamp failed:', e) }
     }
     setStroke([165, 178, 200])
     pdf.setLineWidth(0.25)
