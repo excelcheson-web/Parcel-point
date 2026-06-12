@@ -326,13 +326,13 @@ export default function DashboardMap({ waybill, state, serviceType = 'AIR', mapV
 
       {/* Empty / not found overlay hint */}
       {(state === 'empty' || state === 'notfound' || state === 'error') && (
-        <div className="absolute inset-0 flex items-end justify-center pb-16 pointer-events-none">
+        <div className="absolute inset-x-3 bottom-4 z-10 hidden justify-center pointer-events-none sm:inset-x-6 sm:flex lg:bottom-16">
           <div
-            className="flex items-center gap-3 px-5 py-3 rounded-2xl"
+            className="flex max-w-[min(100%,28rem)] items-center gap-3 px-4 py-3 rounded-2xl sm:px-5"
             style={{ background: 'rgba(11,31,58,0.82)', border: '1px solid rgba(124,58,237,0.3)', backdropFilter: 'blur(12px)' }}
           >
             <div className="w-2 h-2 rounded-full bg-[#7C3AED]/60 animate-pulse" />
-            <p className="text-white/55 text-xs">Route visualisation appears once a shipment is tracked</p>
+            <p className="text-white/55 text-xs leading-snug">Route visualisation appears once a shipment is tracked</p>
           </div>
         </div>
       )}
