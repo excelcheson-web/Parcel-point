@@ -171,6 +171,8 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string | null>(null)
   const [serviceType, setServiceType] = useState<(typeof SERVICE_TYPE_OPTIONS)[number]>('Standard')
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('DOOR_TO_DOOR')
+  const [selectedArrivalDate, setSelectedArrivalDate] = useState(smartDefaults.estimatedArrivalDate)
+  const [hasCustomArrivalDate, setHasCustomArrivalDate] = useState(false)
   const [projectedTimeline, setProjectedTimeline] = useState<GeneratedTimelineEvent[]>(() =>
     generateLocalShipmentTimeline({
       shipmentMode: transportMode,
@@ -191,7 +193,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       origin: overrides.origin || userInput.portOfDeparture || getModeLocation(departureCountry, transportMode),
       destination: overrides.destination || userInput.portOfDestination || getModeLocation(destinationCountry, transportMode),
       departureDate: overrides.departureDate || smartDefaults.dateOfIssue,
-      estimatedDeliveryDate: overrides.estimatedDeliveryDate || smartDefaults.estimatedArrivalDate,
+      estimatedDeliveryDate: overrides.estimatedDeliveryDate || selectedArrivalDate || smartDefaults.estimatedArrivalDate,
     }),
     [
       deliveryType,
@@ -200,6 +202,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       serviceType,
       smartDefaults.dateOfIssue,
       smartDefaults.estimatedArrivalDate,
+      selectedArrivalDate,
       transportMode,
       userInput.portOfDeparture,
       userInput.portOfDestination,
@@ -212,11 +215,34 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
   }, [buildTimelineInput])
 
   useEffect(() => {
+    if (!hasCustomArrivalDate) {
+      setSelectedArrivalDate(smartDefaults.estimatedArrivalDate)
+    }
+  }, [hasCustomArrivalDate, smartDefaults.estimatedArrivalDate])
+
+  useEffect(() => {
     regenerateProjectedTimeline({
       departureDate: smartDefaults.dateOfIssue,
-      estimatedDeliveryDate: smartDefaults.estimatedArrivalDate,
+      estimatedDeliveryDate: selectedArrivalDate || smartDefaults.estimatedArrivalDate,
     })
-  }, [regenerateProjectedTimeline, smartDefaults.dateOfIssue, smartDefaults.estimatedArrivalDate])
+  }, [regenerateProjectedTimeline, selectedArrivalDate, smartDefaults.dateOfIssue, smartDefaults.estimatedArrivalDate])
+
+  const handleArrivalDateChange = (value: string) => {
+    const nextArrivalDate = value || smartDefaults.estimatedArrivalDate
+    setHasCustomArrivalDate(true)
+    setSelectedArrivalDate(nextArrivalDate)
+    regenerateProjectedTimeline({ estimatedDeliveryDate: nextArrivalDate })
+  }
+
+  const applyArrivalDate = () => {
+    regenerateProjectedTimeline({ estimatedDeliveryDate: selectedArrivalDate || smartDefaults.estimatedArrivalDate })
+  }
+
+  const resetArrivalDate = () => {
+    setHasCustomArrivalDate(false)
+    setSelectedArrivalDate(smartDefaults.estimatedArrivalDate)
+    regenerateProjectedTimeline({ estimatedDeliveryDate: smartDefaults.estimatedArrivalDate })
+  }
 
   // Handle transport mode change
   const handleTransportModeChange = (mode: TransportMode) => {
@@ -276,14 +302,21 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
 
     setIsGenerating(true)
     try {
-      const originLocation = completeFormData.portOfDeparture || getModeLocation(departureCountry, transportMode)
-      const destinationLocation = completeFormData.portOfDestination || getModeLocation(destinationCountry, transportMode)
+      const chosenArrivalDate = selectedArrivalDate || completeFormData.estimatedArrivalDate || smartDefaults.estimatedArrivalDate
+      const completeWaybillData: WaybillFormData = {
+        ...completeFormData,
+        arrivalDate: chosenArrivalDate,
+        estimatedArrivalDate: chosenArrivalDate,
+        estimatedDeliveryDate: chosenArrivalDate,
+      }
+      const originLocation = completeWaybillData.portOfDeparture || getModeLocation(departureCountry, transportMode)
+      const destinationLocation = completeWaybillData.portOfDestination || getModeLocation(destinationCountry, transportMode)
       const timelineForWaybill = generateLocalShipmentTimeline(
         buildTimelineInput({
           origin: originLocation,
           destination: destinationLocation,
-          departureDate: completeFormData.dateOfIssue || completeFormData.departureDate || smartDefaults.dateOfIssue,
-          estimatedDeliveryDate: completeFormData.estimatedArrivalDate || completeFormData.estimatedDeliveryDate,
+          departureDate: completeWaybillData.dateOfIssue || completeWaybillData.departureDate || smartDefaults.dateOfIssue,
+          estimatedDeliveryDate: chosenArrivalDate,
         })
       )
 
@@ -298,13 +331,13 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       }))
 
       const waybillData: WaybillFormData = {
-        ...completeFormData,
+        ...completeWaybillData,
         paymentStatus: userInput.paymentStatus || 'NOT PAID',
         routeNumber: autoRouteNumber,
         serviceTypeString: serviceType,
         deliveryType,
-        currentStatus: completeFormData.currentStatus || 'Shipment Created',
-        currentLocation: completeFormData.currentLocation || originLocation,
+        currentStatus: completeWaybillData.currentStatus || 'Shipment Created',
+        currentLocation: completeWaybillData.currentLocation || originLocation,
         trackingEvents: localTimelineForWaybill,
       }
       const pdfUrl = await generateWaybillPDF(waybillData)
@@ -394,6 +427,10 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
           <div className="flex justify-between items-center p-2 bg-white/10 rounded-lg">
             <span className="text-gray-300 font-medium">Date:</span>
             <span className="text-white font-semibold">{formatDate(smartDefaults.dateOfIssue)}</span>
+          </div>
+          <div className="flex justify-between items-center p-2 bg-white/10 rounded-lg">
+            <span className="text-gray-300 font-medium">Arrival Date:</span>
+            <span className="text-white font-semibold">{formatDate(selectedArrivalDate)}</span>
           </div>
           <div className="flex justify-between items-center p-2 bg-white/10 rounded-lg md:col-span-2">
             <span className="text-gray-300 font-medium">Carrier:</span>
@@ -807,7 +844,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
           Local projection is compact to keep this dashboard short. Full timeline details and control appear below after loading an existing waybill number.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
           <div>
             <label className="block text-sm text-white/80 mb-1">Service Type</label>
             <select
@@ -835,18 +872,38 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             </select>
           </div>
 
+          <div>
+            <label className="block text-sm text-white/80 mb-1">Arrival Date</label>
+            <input
+              type="date"
+              min={smartDefaults.dateOfIssue}
+              value={selectedArrivalDate}
+              onChange={(e) => handleArrivalDateChange(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED]"
+            />
+            {hasCustomArrivalDate && (
+              <button
+                type="button"
+                onClick={resetArrivalDate}
+                className="mt-1 text-xs font-semibold text-[#A855F7] hover:text-[#C4B5FD] transition"
+              >
+                Use suggested date
+              </button>
+            )}
+          </div>
+
           <div className="flex items-end">
             <button
               type="button"
-              onClick={() => regenerateProjectedTimeline()}
+              onClick={applyArrivalDate}
               className="w-full px-3 py-2 rounded-lg bg-[#7C3AED] text-white font-semibold hover:bg-[#A855F7] transition"
             >
-              Regenerate Timeline
+              Apply Arrival Date
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">
             <p className="text-[11px] uppercase tracking-wide text-white/60">Milestones</p>
             <p className="mt-1 text-sm font-semibold text-white">{projectedTimeline.length}</p>
@@ -854,6 +911,10 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
           <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">
             <p className="text-[11px] uppercase tracking-wide text-white/60">Start</p>
             <p className="mt-1 text-sm font-semibold text-white">{projectedTimeline[0]?.status || 'N/A'}</p>
+          </div>
+          <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-white/60">Arrival</p>
+            <p className="mt-1 text-sm font-semibold text-white">{formatDate(selectedArrivalDate)}</p>
           </div>
           <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">
             <p className="text-[11px] uppercase tracking-wide text-white/60">End</p>
@@ -933,4 +994,3 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
 }
 
 export default SmartWaybillForm
-

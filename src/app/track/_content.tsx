@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { Maximize2, Minus, Plus } from 'lucide-react'
 import { COMPANY_CONTACT } from '@/lib/constants'
 import { resolveTrackingRoute, type TrackingRoute } from '@/lib/trackingRoute'
+import { computeRuntimeTrackingState } from '@/lib/trackingAutomation'
 import type { StoredWaybill } from '@/lib/types'
 import { getWaybillByNumber, getWaybillErrorMessage, normalizeWaybillLookupInput } from '@/services/waybillService'
 import type { MapServiceType } from './DashboardMap'
@@ -89,6 +90,45 @@ function fmtDT(val?: string | null): string {
 }
 
 // ── Icons ──────────────────────────────────────────────────────────────────
+
+type RuntimeJourney = ReturnType<typeof computeRuntimeTrackingState>
+type JourneyState = 'completed' | 'current' | 'upcoming' | 'hold'
+
+function getJourneyState(runtime: RuntimeJourney, index: number): JourneyState {
+  if (runtime.activeEventIndex < 0) return 'upcoming'
+  if (runtime.isOnHold && index === runtime.holdEventIndex) return 'hold'
+  if (index < runtime.activeEventIndex) return 'completed'
+  if (index === runtime.activeEventIndex) return 'current'
+  return 'upcoming'
+}
+
+function getJourneyDotStyle(state: JourneyState) {
+  if (state === 'completed') return { background: '#10b981', boxShadow: '0 0 6px rgba(16,185,129,0.45)' }
+  if (state === 'current') return { background: '#A855F7', boxShadow: '0 0 6px rgba(168,85,247,0.55)' }
+  if (state === 'hold') return { background: '#f59e0b', boxShadow: '0 0 6px rgba(245,158,11,0.5)' }
+  return { background: 'rgba(255,255,255,0.2)', boxShadow: 'none' }
+}
+
+function getJourneyTextColor(state: JourneyState): string {
+  if (state === 'completed') return 'rgba(255,255,255,0.72)'
+  if (state === 'current' || state === 'hold') return 'white'
+  return 'rgba(255,255,255,0.5)'
+}
+
+function compactJourneyEvents(runtime: RuntimeJourney, maxItems = 6) {
+  if (runtime.events.length <= maxItems) {
+    return runtime.events.map((event, index) => ({ event, index, state: getJourneyState(runtime, index) }))
+  }
+
+  const activeIndex = runtime.activeEventIndex >= 0 ? runtime.activeEventIndex : 0
+  const start = Math.min(Math.max(activeIndex - 2, 0), Math.max(runtime.events.length - maxItems, 0))
+  return runtime.events
+    .slice(start, start + maxItems)
+    .map((event, offset) => {
+      const index = start + offset
+      return { event, index, state: getJourneyState(runtime, index) }
+    })
+}
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
@@ -337,12 +377,12 @@ export default function TrackContent({ initialId }: { initialId: string }) {
     [result],
   )
 
-  const step = result ? getStep(result.currentStatus) : 0
-  const sstyle = statusStyle(result?.currentStatus)
-  const sortedEvents = useMemo(
-    () => [...(result?.trackingEvents ?? [])].sort((a, b) => new Date(b.eventTime).getTime() - new Date(a.eventTime).getTime()),
-    [result],
-  )
+  const runtime = useMemo(() => (result ? computeRuntimeTrackingState(result.trackingEvents ?? []) : null), [result])
+  const currentStatus = runtime?.currentStatus ?? result?.currentStatus ?? 'Unknown Status'
+  const currentLocation = runtime?.currentLocation ?? result?.currentLocation ?? result?.destination ?? ''
+  const step = result ? getStep(currentStatus) : 0
+  const sstyle = statusStyle(currentStatus)
+  const journeyEvents = useMemo(() => (runtime ? compactJourneyEvents(runtime) : []), [runtime])
   const routeInfo = useMemo(() => (result ? resolveTrackingRoute(result) : null), [result])
   const shipmentIntel = useMemo(
     () => (result ? deriveShipmentIntelligence(result, routeInfo, serviceType, step) : null),
@@ -481,7 +521,7 @@ export default function TrackContent({ initialId }: { initialId: string }) {
                   className="text-[11px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide"
                   style={{ background: sstyle.bg, color: sstyle.color }}
                 >
-                  {result.currentStatus ?? 'Unknown Status'}
+                  {currentStatus}
                 </span>
                 <span className="text-white/30 text-[10px] font-mono tracking-wider max-w-[48%] truncate">{result.waybillNumber}</span>
               </div>
@@ -544,7 +584,7 @@ export default function TrackContent({ initialId }: { initialId: string }) {
               <div className="mb-4 px-0.5">
                 <p className="text-white/40 text-[10px] uppercase tracking-widest mb-0.5">Last confirmed location</p>
                 <p className="text-white text-sm font-semibold leading-snug">
-                  {result.currentLocation ?? result.destination ?? '—'}
+                  {currentLocation || '—'}
                 </p>
               </div>
 
@@ -877,7 +917,7 @@ export default function TrackContent({ initialId }: { initialId: string }) {
                   <span className="text-[9px] font-bold uppercase tracking-widest text-[#A855F7]">Last Known Location</span>
                 </div>
                 <p className="text-white text-sm font-semibold leading-snug truncate">
-                  {result.currentLocation ?? result.destination ?? 'In Transit'}
+                  {currentLocation || 'In Transit'}
                 </p>
                 <p className="text-white/35 text-[10px] mt-0.5">Last confirmed location</p>
               </div>
@@ -907,24 +947,25 @@ export default function TrackContent({ initialId }: { initialId: string }) {
                 </div>
 
                 <div className="space-y-2 max-h-32 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
-                  {sortedEvents.length > 0 ? sortedEvents.slice(0, 6).map((ev, i) => (
-                    <div key={i} className="flex gap-2.5">
+                  {journeyEvents.length > 0 ? journeyEvents.map(({ event: ev, index, state: eventState }, i) => (
+                    <div key={`${ev.status}-${ev.eventTime}-${index}`} className="flex gap-2.5">
                       <div className="flex flex-col items-center shrink-0">
                         <div
                           className="w-2 h-2 rounded-full mt-0.5 shrink-0"
-                          style={{ background: i === 0 ? '#A855F7' : 'rgba(255,255,255,0.2)', boxShadow: i === 0 ? '0 0 6px rgba(168,85,247,0.5)' : 'none' }}
+                          style={getJourneyDotStyle(eventState)}
                         />
-                        {i < Math.min(sortedEvents.length - 1, 5) && (
+                        {i < journeyEvents.length - 1 && (
                           <div className="w-px mt-0.5 bg-white/10 flex-1" style={{ minHeight: '10px' }} />
                         )}
                       </div>
                       <div className="pb-1 min-w-0">
-                        <p className="text-xs font-semibold leading-snug" style={{ color: i === 0 ? 'white' : 'rgba(255,255,255,0.5)' }}>
+                        <p className="text-xs font-semibold leading-snug" style={{ color: getJourneyTextColor(eventState) }}>
                           {ev.status}
-                          {ev.isHold && <span className="ml-1.5 text-amber-400 text-[9px] font-bold">⏸ HOLD</span>}
+                          {eventState === 'current' && <span className="ml-1.5 text-[#A855F7] text-[9px] font-bold">CURRENT</span>}
+                          {eventState === 'hold' && <span className="ml-1.5 text-amber-400 text-[9px] font-bold">HOLD</span>}
                         </p>
                         <p className="text-[10px] text-white/30 truncate">{ev.location} · {fmtDT(ev.eventTime)}</p>
-                        {ev.isHold && ev.holdReason && (
+                        {eventState === 'hold' && ev.holdReason && (
                           <p className="mt-0.5 text-[10px] font-medium text-amber-300/80 leading-snug truncate">{ev.holdReason}</p>
                         )}
                       </div>
@@ -1142,26 +1183,27 @@ export default function TrackContent({ initialId }: { initialId: string }) {
               </div>
 
               <div className="space-y-3 max-h-64 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
-                {sortedEvents.length > 0 ? sortedEvents.slice(0, 6).map((ev, i) => (
-                  <div key={i} className="flex gap-2.5">
+                {journeyEvents.length > 0 ? journeyEvents.map(({ event: ev, index, state: eventState }, i) => (
+                  <div key={`${ev.status}-${ev.eventTime}-${index}`} className="flex gap-2.5">
                     <div className="flex flex-col items-center shrink-0">
                       <div
                         className="w-2 h-2 rounded-full mt-1 shrink-0"
-                        style={{ background: i === 0 ? '#A855F7' : 'rgba(255,255,255,0.2)', boxShadow: i === 0 ? '0 0 6px rgba(168,85,247,0.5)' : 'none' }}
+                        style={getJourneyDotStyle(eventState)}
                       />
-                      {i < Math.min(sortedEvents.length - 1, 5) && (
+                      {i < journeyEvents.length - 1 && (
                         <div className="w-px mt-1 bg-white/10 flex-1" style={{ minHeight: '16px' }} />
                       )}
                     </div>
                     <div className="pb-1 min-w-0">
-                      <p className="text-xs font-semibold leading-snug" style={{ color: i === 0 ? 'white' : 'rgba(255,255,255,0.58)' }}>
+                      <p className="text-xs font-semibold leading-snug" style={{ color: getJourneyTextColor(eventState) }}>
                         {ev.status}
-                        {ev.isHold && <span className="ml-1.5 text-amber-400 text-[9px] font-bold">HOLD</span>}
+                        {eventState === 'current' && <span className="ml-1.5 text-[#A855F7] text-[9px] font-bold">CURRENT</span>}
+                        {eventState === 'hold' && <span className="ml-1.5 text-amber-400 text-[9px] font-bold">HOLD</span>}
                       </p>
                       <p className="text-[10px] text-white/35 leading-snug break-words">
                         {ev.location} / {fmtDT(ev.eventTime)}
                       </p>
-                      {ev.isHold && ev.holdReason && (
+                      {eventState === 'hold' && ev.holdReason && (
                         <p className="mt-0.5 text-[10px] font-medium text-amber-300/80 leading-snug break-words">{ev.holdReason}</p>
                       )}
                     </div>
