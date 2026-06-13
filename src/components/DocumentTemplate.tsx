@@ -1,9 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import jsPDF from 'jspdf'
-import JsBarcode from 'jsbarcode'
-import QRCode from 'qrcode'
+import type { jsPDF } from 'jspdf'
 import type { DocumentConfig } from '@/lib/types'
 import { getCurrencySymbolForPdf, getCurrencyWords as getSharedCurrencyWords } from '@/lib/currency'
 
@@ -101,6 +99,7 @@ export function buildReceiptNumber(companyName: string): string {
 async function makeQrDataURL(text: string): Promise<string | null> {
   if (!text) return null
   try {
+    const { default: QRCode } = await import('qrcode')
     return await QRCode.toDataURL(text, { width: 128, margin: 1, color: { dark: '#000000', light: '#ffffff' } })
   } catch { return null }
 }
@@ -108,6 +107,7 @@ async function makeQrDataURL(text: string): Promise<string | null> {
 async function makeBarcodeDataURL(value: string): Promise<string | null> {
   if (!value) return null
   try {
+    const { default: JsBarcode } = await import('jsbarcode')
     const canvas = document.createElement('canvas')
     JsBarcode(canvas, value.slice(0, 40), {
       format: 'CODE128', width: 2, height: 48, displayValue: false,
@@ -443,6 +443,7 @@ async function drawQrBarFooter(
 // Accent header band · Labelled party blocks · Dark table · Status badge
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 async function generateClassicPDF(data: DocumentConfig, theme: BrandTheme, logoData: string|null, wm: string|null): Promise<jsPDF> {
+  const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF({unit:'mm', format:'a4'})
   const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight()
   const m=14, cw=pw-m*2
@@ -688,6 +689,7 @@ async function generateClassicPDF(data: DocumentConfig, theme: BrandTheme, logoD
 // Bold full-width primary header · Open party columns · Accent grand total
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 async function generateModernPDF(data: DocumentConfig, theme: BrandTheme, logoData: string|null, wm: string|null): Promise<jsPDF> {
+  const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF({unit:'mm', format:'a4'})
   const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight()
   const m=14, cw=pw-m*2
@@ -909,6 +911,7 @@ async function generateModernPDF(data: DocumentConfig, theme: BrandTheme, logoDa
 // No fills · Large RECEIPT typography · Thin ruled lines · Airy layout
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 async function generateMinimalPDF(data: DocumentConfig, theme: BrandTheme, logoData: string|null, wm: string|null): Promise<jsPDF> {
+  const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF({unit:'mm', format:'a4'})
   const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight()
   const m=18, cw=pw-m*2
@@ -1106,6 +1109,7 @@ async function generateMinimalPDF(data: DocumentConfig, theme: BrandTheme, logoD
 // Logo centered · Items compact · QR + barcode at bottom
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 async function generateCompactPosPDF(data: DocumentConfig, theme: BrandTheme, logoData: string|null, _wm: string|null): Promise<jsPDF> {
+  const { jsPDF } = await import('jspdf')
   void _wm
   const pdf = new jsPDF({unit:'mm', format:'a4'})
   const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight()

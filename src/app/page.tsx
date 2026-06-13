@@ -218,7 +218,7 @@ export default function Home() {
       {/* ── HERO (unchanged) ─────────────────────────────────────────────── */}
       <section id="track" className="pp-hero relative overflow-hidden">
         <div className="pp-hero-art" aria-hidden="true">
-          <Image src="/parcel-point-hero-logistics.png" alt="" fill priority className="object-cover" sizes="100vw" />
+          <Image src="/parcel-point-hero-logistics.webp" alt="" fill priority className="object-cover" sizes="100vw" />
         </div>
         <div className="pp-hero-overlay" aria-hidden="true" />
         <div className="pp-hero-grid-overlay" aria-hidden="true" />

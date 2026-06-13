@@ -1,9 +1,6 @@
 'use client'
 
 import { useCallback, useEffect } from 'react'
-import jsPDF from 'jspdf'
-import JsBarcode from 'jsbarcode'
-import QRCode from 'qrcode'
 import type { TrackingEventRecord, WaybillCurrentLocationDetails, WaybillFormData, WaybillRouteMetrics } from '@/lib/types'
 import { COMPANY_CONTACT, SKYSHIP_CONFIG, normalizeTransportMode, type TransportModeKey } from '@/lib/constants'
 
@@ -116,7 +113,8 @@ async function normalizeForPdf(dataUrl: string, maxPx = 400): Promise<string> {
   })
 }
 
-function makeBarcodeDataURL(value: string): string {
+async function makeBarcodeDataURL(value: string): Promise<string> {
+  const { default: JsBarcode } = await import('jsbarcode')
   const canvas = document.createElement('canvas')
   JsBarcode(canvas, value, {
     format: 'CODE128',
@@ -131,6 +129,7 @@ function makeBarcodeDataURL(value: string): string {
 }
 
 async function makeQrDataURL(text: string): Promise<string> {
+  const { default: QRCode } = await import('qrcode')
   return QRCode.toDataURL(text, {
     errorCorrectionLevel: 'M',
     margin: 0,
@@ -204,11 +203,6 @@ function formatMoney(value: number, currency = 'USD'): string {
   return currency === 'USD' ? `$${amount}` : `${currency} ${amount}`
 }
 
-function formatDistance(value: number | null): string {
-  if (value === null) return 'Pending API'
-  return `${value.toLocaleString('en-US', { maximumFractionDigits: 0 })} km`
-}
-
 function formatCoordinate(value: number | null): string {
   if (value === null) return 'Pending GPS'
   return value.toFixed(5)
@@ -273,6 +267,7 @@ function sampleTimelineIndices(count: number, currentIdx: number, max = 7): numb
 }
 
 export async function generateWaybillPDF(data: WaybillFormData): Promise<string> {
+  const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -516,7 +511,6 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
       ? suppliedProgress / 100
       : suppliedProgress
   const transitProgress = clampNumber(normalizedSuppliedProgress ?? eventProgress, 0, 1)
-  const progressPct = Math.round(transitProgress * 100)
   const totalDistanceKm = coerceFiniteNumber(data.totalDistanceKm) ?? coerceFiniteNumber(routeMetrics?.totalDistanceKm)
   let distanceTraveledKm = coerceFiniteNumber(data.distanceTraveledKm) ?? coerceFiniteNumber(routeMetrics?.distanceTraveledKm)
   let distanceRemainingKm = coerceFiniteNumber(data.distanceRemainingKm) ?? coerceFiniteNumber(routeMetrics?.distanceRemainingKm)
@@ -587,7 +581,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   const trackUrl = `${siteOrigin}/track/${encodeURIComponent(trackingNumber)}?verify=${encodeURIComponent(verificationCode)}`
 
   // Pre-rendered graphics
-  const barcodeDataUrl = makeBarcodeDataURL(trackingNumber)
+  const barcodeDataUrl = await makeBarcodeDataURL(trackingNumber)
   const qrDataUrl = await makeQrDataURL(trackUrl)
   const logoImage = await loadImageAsDataURL(data.logoUrl || data.senderLogoUrl || '/parcel-point-logo.png')
   const fiataRaw  = await loadImageAsDataURL('/fiata-logo.png')

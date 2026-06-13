@@ -1,4 +1,5 @@
 "use client";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { CURRENCY_OPTIONS, formatCurrencyAmount, getCurrencyLabel } from "@/lib/currency";
 import { getFirebaseAuth } from "@/lib/firebase";
@@ -25,12 +26,24 @@ const PAYMENT_STATUS_OPTIONS: { value: PaymentStatus; label: string; color: stri
 
 import type { DocumentConfig } from "@/lib/types";
 import { SKYSHIP_CONFIG, generateTrackingId } from "@/lib/constants";
-import generateDocumentPDF from "@/components/DocumentTemplate";
-import SmartWaybillForm from "@/components/SmartWaybillForm";
-import AdminTimelineControlPanel from "@/components/AdminTimelineControlPanel";
-import { buildStoredWaybillFromFormData, createWaybill, getWaybillErrorMessage } from "@/services/waybillService";
 
 const LAST_RECEIPT_DOC_STORAGE_KEY = 'parcelpoint_last_receipt_doc'
+
+const SmartWaybillForm = dynamic(() => import("@/components/SmartWaybillForm"), {
+  loading: () => (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/55">
+      Loading waybill tools...
+    </div>
+  ),
+})
+
+const AdminTimelineControlPanel = dynamic(() => import("@/components/AdminTimelineControlPanel"), {
+  loading: () => (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/55">
+      Loading timeline controls...
+    </div>
+  ),
+})
 
 function asSafeText(value: unknown, fallback: string): string {
   if (typeof value === 'string') { const t = value.trim(); return t || fallback }
@@ -644,6 +657,7 @@ export default function AdminPage() {
       setLastGeneratedDoc(doc)
       setGenerated(prev => [doc, ...prev.slice(0,4)])
       try {
+        const { default: generateDocumentPDF } = await import("@/components/DocumentTemplate")
         const pdfUrl = await generateDocumentPDF(doc)
         setLastGeneratedUrl(pdfUrl)
         if (!isMobileBrowser()) {
@@ -1282,12 +1296,19 @@ export default function AdminPage() {
               <SmartWaybillForm
                 onGenerated={async (_pdfUrl, waybillData) => {
                   setIsWaybillSaving(true); setWaybillSaveError(null); setWaybillSaveSuccess(null)
+                  let getWaybillErrorMessage: ((error: unknown, context?: string) => string) | null = null
                   try {
-                    const doc = buildStoredWaybillFromFormData(waybillData)
-                    await createWaybill(doc)
+                    const waybillService = await import("@/services/waybillService")
+                    getWaybillErrorMessage = waybillService.getWaybillErrorMessage
+                    const doc = waybillService.buildStoredWaybillFromFormData(waybillData)
+                    await waybillService.createWaybill(doc)
                     setWaybillSaveSuccess(`Waybill ${doc.waybillNumber} saved successfully.`)
                   } catch (err) {
-                    const msg = getWaybillErrorMessage(err, 'waybill save')
+                    const msg = getWaybillErrorMessage
+                      ? getWaybillErrorMessage(err, 'waybill save')
+                      : err instanceof Error
+                        ? err.message
+                        : 'Unable to save waybill right now. Please try again.'
                     setWaybillSaveError(msg); throw new Error(msg)
                   } finally { setIsWaybillSaving(false) }
                 }}

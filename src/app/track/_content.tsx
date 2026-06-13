@@ -9,7 +9,6 @@ import { COMPANY_CONTACT } from '@/lib/constants'
 import { resolveTrackingRoute, type TrackingRoute } from '@/lib/trackingRoute'
 import { computeRuntimeTrackingState } from '@/lib/trackingAutomation'
 import type { StoredWaybill } from '@/lib/types'
-import { getWaybillByNumber, getWaybillErrorMessage, normalizeWaybillLookupInput } from '@/services/waybillService'
 import type { MapServiceType } from './DashboardMap'
 
 const DashboardMap = dynamic(() => import('./DashboardMap'), {
@@ -39,6 +38,10 @@ interface ShipmentIntelligence {
 
 function wait(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function normalizeWaybillLookupInput(input: string): string {
+  return input.trim().replace(/\s+/g, '').toUpperCase()
 }
 
 function detectServiceType(waybill: StoredWaybill): MapServiceType {
@@ -349,6 +352,7 @@ export default function TrackContent({ initialId }: { initialId: string }) {
 
     if (!skipDelay) await wait(LOADING_DELAY_MS)
     try {
+      const { getWaybillByNumber } = await import('@/services/waybillService')
       const found = await getWaybillByNumber(norm)
       if (found) {
         setResult(found)
@@ -358,6 +362,7 @@ export default function TrackContent({ initialId }: { initialId: string }) {
       }
     } catch (err) {
       console.error(err)
+      const { getWaybillErrorMessage } = await import('@/services/waybillService')
       setErrorMessage(getWaybillErrorMessage(err, 'tracking lookup'))
       setState('error')
     }

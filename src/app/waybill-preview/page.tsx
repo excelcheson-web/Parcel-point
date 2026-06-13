@@ -111,18 +111,22 @@ export default function WaybillPreviewPage() {
           return
         }
         createdUrl = url
-        const b64 = await blobUrlToBase64(url)
-        if (cancelled) return
         setError(null)
         setPdfUrl(url)
-        setPdfBase64(b64)
-        // Fire-and-forget dump for headless design verification; no-op when
-        // no listener is running. text/plain keeps it a simple CORS request.
-        fetch('http://localhost:4789/dump', {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: b64,
-        }).catch(() => {})
+        try {
+          const b64 = await blobUrlToBase64(url)
+          if (cancelled) return
+          setPdfBase64(b64)
+          // Fire-and-forget dump for headless design verification; no-op when
+          // no listener is running. text/plain keeps it a simple CORS request.
+          fetch('http://localhost:4789/dump', {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: b64,
+          }).catch(() => {})
+        } catch {
+          if (!cancelled) setPdfBase64(null)
+        }
       })
       .catch((e: unknown) => {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to generate PDF')

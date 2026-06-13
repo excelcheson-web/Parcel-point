@@ -5,7 +5,6 @@ import { useSmartDefaults } from '@/hooks/useSmartDefaults'
 import { AddressBookDropdown } from './AddressBookDropdown'
 import { StatusToggles } from './StatusToggles'
 import { LineItemsManager } from './LineItemsManager'
-import { generateWaybillPDF } from './WaybillTemplate'
 import { getCarrierDisplayName, COUNTRIES } from '@/lib/constants'
 import type { WaybillFormData } from '@/lib/types'
 import {
@@ -340,6 +339,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
         currentLocation: completeWaybillData.currentLocation || originLocation,
         trackingEvents: localTimelineForWaybill,
       }
+      const { generateWaybillPDF } = await import('./WaybillTemplate')
       const pdfUrl = await generateWaybillPDF(waybillData)
       
       setGeneratedPdfUrl(pdfUrl)
