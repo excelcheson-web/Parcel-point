@@ -298,6 +298,19 @@ export interface WaybillFormData {
   airportOfDeparture?: string;
   airportOfDestination?: string;
   routeNumber?: string;
+
+  // === PRECISE GEO (origin + final delivery) — drives map zoom & pinpoint ===
+  originCity?: string;
+  originProvince?: string;
+  originCountryCode?: string; // ISO2
+  originLat?: number;
+  originLng?: number;
+  destCity?: string;
+  destProvince?: string;
+  destCountryCode?: string; // ISO2
+  destLat?: number;
+  destLng?: number;
+  deliveryLocality?: string; // finer locality/address line shown at the pinpoint
   toCode?: string;
   byFirstCarrier?: string;
   firstCarrier?: string;
@@ -533,6 +546,10 @@ export interface TrackingEventRecord {
   eventTime: string;
   isHold?: boolean;
   holdReason?: string; // Structured hold reason (e.g. "Customs Examination — Goods Under Inspection")
+  // Optional precise coordinates of where this scan happened. When present the
+  // map traces the true city-by-city path instead of guessing from the label.
+  lat?: number;
+  lng?: number;
 }
 
 // Firestore waybill document shape (supports both old and new fields)
@@ -558,6 +575,20 @@ export interface StoredWaybill extends Omit<Partial<WaybillFormData>, 'serviceTy
   destination?: string;
   portOfDeparture?: string;
   portOfDestination?: string;
+
+  // Precise geo (origin + final delivery) — drives map zoom & pinpoint
+  originCity?: string;
+  originProvince?: string;
+  originCountryCode?: string;
+  originLat?: number;
+  originLng?: number;
+  destCity?: string;
+  destProvince?: string;
+  destCountryCode?: string;
+  destLat?: number;
+  destLng?: number;
+  deliveryLocality?: string;
+  receiverCity?: string;
 
   shipmentMode?: string;
   transportMode?: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR';

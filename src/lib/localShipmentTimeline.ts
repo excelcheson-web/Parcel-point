@@ -8,6 +8,13 @@ export interface GeneratedTimelineEvent {
   description: string
   eventTime: string
   isHold: boolean
+  lat?: number
+  lng?: number
+}
+
+export interface GeoPoint {
+  lat: number
+  lng: number
 }
 
 export interface ShipmentTimelineInput {
@@ -18,6 +25,9 @@ export interface ShipmentTimelineInput {
   destination: string
   departureDate?: string
   estimatedDeliveryDate?: string
+  /** Precise coordinates so each milestone can be plotted on the map. */
+  originCoords?: GeoPoint
+  destinationCoords?: GeoPoint
 }
 
 interface StageTemplate {
@@ -264,6 +274,15 @@ export function generateLocalShipmentTimeline(input: ShipmentTimelineInput): Gen
     baseTotalMs > 0
   const targetWindowMs = useEstimatedWindow ? estimatedDeliveryMs - startMs : 0
 
+  const o = input.originCoords
+  const d = input.destinationCoords
+  const mid: GeoPoint | undefined = o && d ? { lat: (o.lat + d.lat) / 2, lng: (o.lng + d.lng) / 2 } : undefined
+  const coordForRole = (role: StageTemplate['locationRole']): GeoPoint | undefined => {
+    if (role === 'origin' || role === 'originHub') return o
+    if (role === 'destination' || role === 'destinationHub') return d
+    return mid
+  }
+
   return template.map((stage, index) => {
     let eventMs = startMs + Math.round(cumulativeMs[index] || 0)
     if (useEstimatedWindow) {
@@ -274,6 +293,7 @@ export function generateLocalShipmentTimeline(input: ShipmentTimelineInput): Gen
       }
     }
 
+    const coord = coordForRole(stage.locationRole)
     return {
       id: buildEventId(index),
       status: stage.status,
@@ -281,6 +301,7 @@ export function generateLocalShipmentTimeline(input: ShipmentTimelineInput): Gen
       description: stage.description,
       eventTime: new Date(eventMs).toISOString(),
       isHold: false,
+      ...(coord ? { lat: coord.lat, lng: coord.lng } : {}),
     }
   })
 }

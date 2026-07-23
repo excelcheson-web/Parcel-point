@@ -29,6 +29,8 @@ export function normalizeTrackingEvents(events: TrackingEventRecord[], fallbackL
       eventTime: normalizeEventTime(event.eventTime, now),
       isHold: Boolean(event.isHold),
       holdReason: event.isHold ? (event.holdReason?.trim() || undefined) : undefined,
+      ...(typeof event.lat === 'number' && Number.isFinite(event.lat) ? { lat: event.lat } : {}),
+      ...(typeof event.lng === 'number' && Number.isFinite(event.lng) ? { lng: event.lng } : {}),
     }
 
     const key = `${normalized.status}|${normalized.location}|${normalized.description}|${normalized.eventTime}|${normalized.isHold ? '1' : '0'}|${index}`

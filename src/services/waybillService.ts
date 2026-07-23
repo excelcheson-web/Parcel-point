@@ -510,6 +510,8 @@ export function buildStoredWaybillFromFormData(waybillData: WaybillFormData): Wa
           description: event.description || 'No description provided.',
           eventTime: event.eventTime || now,
           isHold: Boolean(event.isHold),
+          ...(typeof event.lat === 'number' && Number.isFinite(event.lat) ? { lat: event.lat } : {}),
+          ...(typeof event.lng === 'number' && Number.isFinite(event.lng) ? { lng: event.lng } : {}),
         }))
       : createInitialTrackingEvents(origin)
   );

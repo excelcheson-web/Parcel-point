@@ -226,7 +226,21 @@ export const COUNTRIES = [
   { code: 'SA', name: 'Saudi Arabia', city: 'Riyadh', airport: 'RUH' },
   { code: 'TW', name: 'Taiwan', city: 'Taipei', airport: 'TPE' },
   { code: 'HK', name: 'Hong Kong', city: 'Hong Kong', airport: 'HKG' },
-  
+  { code: 'MO', name: 'Macau', city: 'Macau', airport: 'MFM' },
+  { code: 'MN', name: 'Mongolia', city: 'Ulaanbaatar', airport: 'ULN' },
+  { code: 'MM', name: 'Myanmar', city: 'Yangon', airport: 'RGN' },
+  { code: 'KH', name: 'Cambodia', city: 'Phnom Penh', airport: 'PNH' },
+  { code: 'LA', name: 'Laos', city: 'Vientiane', airport: 'VTE' },
+  { code: 'BN', name: 'Brunei', city: 'Bandar Seri Begawan', airport: 'BWN' },
+  { code: 'TL', name: 'Timor-Leste', city: 'Dili', airport: 'DIL' },
+  { code: 'PK', name: 'Pakistan', city: 'Karachi', airport: 'KHI' },
+  { code: 'BD', name: 'Bangladesh', city: 'Dhaka', airport: 'DAC' },
+  { code: 'LK', name: 'Sri Lanka', city: 'Colombo', airport: 'CMB' },
+  { code: 'NP', name: 'Nepal', city: 'Kathmandu', airport: 'KTM' },
+  { code: 'BT', name: 'Bhutan', city: 'Paro', airport: 'PBH' },
+  { code: 'MV', name: 'Maldives', city: 'Male', airport: 'MLE' },
+  { code: 'AF', name: 'Afghanistan', city: 'Kabul', airport: 'KBL' },
+
   // North American Countries
   { code: 'US', name: 'United States', city: 'New York', airport: 'JFK' },
   { code: 'CA', name: 'Canada', city: 'Toronto', airport: 'YYZ' },

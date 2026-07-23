@@ -6,6 +6,8 @@ import { AddressBookDropdown } from './AddressBookDropdown'
 import { StatusToggles } from './StatusToggles'
 import { LineItemsManager } from './LineItemsManager'
 import { getCarrierDisplayName, COUNTRIES } from '@/lib/constants'
+import { LocationPicker, type PickedLocation } from './LocationPicker'
+import { hasGeoDetail } from '@/lib/geo/geoData'
 import type { WaybillFormData } from '@/lib/types'
 import {
   type DeliveryType,
@@ -130,6 +132,15 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
   // Country selections
   const [departureCountry, setDepartureCountry] = useState<typeof COUNTRIES[number]>(COUNTRIES[0])
   const [destinationCountry, setDestinationCountry] = useState<typeof COUNTRIES[number]>(COUNTRIES[4])
+
+  // Precise province/city selection (drives map zoom + pinpoint)
+  const initialSel = (c: typeof COUNTRIES[number]): PickedLocation => ({
+    countryCode: c.code,
+    countryName: c.name,
+    hasDetail: hasGeoDetail(c.code),
+  })
+  const [departureSel, setDepartureSel] = useState<PickedLocation>(() => initialSel(COUNTRIES[0]))
+  const [destinationSel, setDestinationSel] = useState<PickedLocation>(() => initialSel(COUNTRIES[4]))
   
   // Smart defaults hook - pass country info for dynamic departure/destination
   const {
@@ -184,6 +195,10 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
     })
   )
 
+  const selCoords = useCallback((sel: PickedLocation) => (
+    typeof sel.lat === 'number' && typeof sel.lng === 'number' ? { lat: sel.lat, lng: sel.lng } : undefined
+  ), [])
+
   const buildTimelineInput = useCallback(
     (overrides: Partial<ShipmentTimelineInput> = {}): ShipmentTimelineInput => ({
       shipmentMode: overrides.shipmentMode || transportMode,
@@ -193,11 +208,16 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       destination: overrides.destination || userInput.portOfDestination || getModeLocation(destinationCountry, transportMode),
       departureDate: overrides.departureDate || smartDefaults.dateOfIssue,
       estimatedDeliveryDate: overrides.estimatedDeliveryDate || selectedArrivalDate || smartDefaults.estimatedArrivalDate,
+      originCoords: overrides.originCoords || selCoords(departureSel),
+      destinationCoords: overrides.destinationCoords || selCoords(destinationSel),
     }),
     [
       deliveryType,
       departureCountry,
       destinationCountry,
+      departureSel,
+      destinationSel,
+      selCoords,
       serviceType,
       smartDefaults.dateOfIssue,
       smartDefaults.estimatedArrivalDate,
@@ -247,8 +267,8 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
   const handleTransportModeChange = (mode: TransportMode) => {
     setTransportMode(mode)
     updateTransportMode(mode)
-    const nextOrigin = getModeLocation(departureCountry, mode)
-    const nextDestination = getModeLocation(destinationCountry, mode)
+    const nextOrigin = portStringFor(departureSel, departureCountry, mode)
+    const nextDestination = portStringFor(destinationSel, destinationCountry, mode)
     updateUserInput('portOfDeparture', nextOrigin)
     updateUserInput('portOfDestination', nextDestination)
 
@@ -259,27 +279,37 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
     regenerateProjectedTimeline({ shipmentMode: mode, deliveryType: syncedDeliveryType, origin: nextOrigin, destination: nextDestination })
   }
 
-  // Handle country changes
-  const handleDepartureChange = (countryCode: string) => {
-    const country = COUNTRIES.find(c => c.code === countryCode)
-    if (country) {
-      const nextOrigin = getModeLocation(country, transportMode)
-      setDepartureCountry(country)
-      // Update the smart defaults with new departure info
-      updateUserInput('portOfDeparture', nextOrigin)
-      regenerateProjectedTimeline({ origin: nextOrigin })
-    }
+  // Build a human-readable location string: exact "City, Province, Country" when a
+  // city is chosen, else the country hub gateway ("City/CODE").
+  const portStringFor = useCallback((sel: PickedLocation, country: typeof COUNTRIES[number], mode: TransportMode): string => {
+    if (sel.city) return [sel.city, sel.province, sel.countryName].filter(Boolean).join(', ')
+    return getModeLocation(country, mode)
+  }, [])
+
+  // Handle precise location changes from the pickers
+  const handleDeparturePick = (loc: PickedLocation) => {
+    setDepartureSel(loc)
+    const country = COUNTRIES.find(c => c.code === loc.countryCode) || departureCountry
+    setDepartureCountry(country)
+    const nextOrigin = portStringFor(loc, country, transportMode)
+    updateUserInput('portOfDeparture', nextOrigin)
+    regenerateProjectedTimeline({
+      origin: nextOrigin,
+      originCoords: typeof loc.lat === 'number' && typeof loc.lng === 'number' ? { lat: loc.lat, lng: loc.lng } : undefined,
+    })
   }
 
-  const handleDestinationChange = (countryCode: string) => {
-    const country = COUNTRIES.find(c => c.code === countryCode)
-    if (country) {
-      const nextDestination = getModeLocation(country, transportMode)
-      setDestinationCountry(country)
-      // Update the smart defaults with new destination info
-      updateUserInput('portOfDestination', nextDestination)
-      regenerateProjectedTimeline({ destination: nextDestination })
-    }
+  const handleDestinationPick = (loc: PickedLocation) => {
+    setDestinationSel(loc)
+    const country = COUNTRIES.find(c => c.code === loc.countryCode) || destinationCountry
+    setDestinationCountry(country)
+    const nextDestination = portStringFor(loc, country, transportMode)
+    updateUserInput('portOfDestination', nextDestination)
+    if (loc.city) updateUserInput('receiverCity', loc.city)
+    regenerateProjectedTimeline({
+      destination: nextDestination,
+      destinationCoords: typeof loc.lat === 'number' && typeof loc.lng === 'number' ? { lat: loc.lat, lng: loc.lng } : undefined,
+    })
   }
 
   const handleServiceTypeChange = (value: (typeof SERVICE_TYPE_OPTIONS)[number]) => {
@@ -327,10 +357,26 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
         description: event.description,
         eventTime: event.eventTime,
         isHold: event.isHold,
+        ...(typeof event.lat === 'number' && typeof event.lng === 'number' ? { lat: event.lat, lng: event.lng } : {}),
       }))
+
+      const geoFields: Partial<WaybillFormData> = {
+        originCity: departureSel.city,
+        originProvince: departureSel.province,
+        originCountryCode: departureSel.countryCode,
+        originLat: departureSel.lat,
+        originLng: departureSel.lng,
+        destCity: destinationSel.city,
+        destProvince: destinationSel.province,
+        destCountryCode: destinationSel.countryCode,
+        destLat: destinationSel.lat,
+        destLng: destinationSel.lng,
+        deliveryLocality: userInput.receiverCity || destinationSel.city,
+      }
 
       const waybillData: WaybillFormData = {
         ...completeWaybillData,
+        ...geoFields,
         paymentStatus: userInput.paymentStatus || 'NOT PAID',
         routeNumber: autoRouteNumber,
         serviceTypeString: serviceType,
@@ -481,69 +527,45 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
           Routing & Destination
         </h4>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Departure Country */}
-          <div className="p-3 bg-white/10 rounded-lg border border-white/20">
-            <label className="block text-sm font-medium text-white/80 mb-2">
-              Departure Country / {terminalLabel}
-            </label>
-            <select
-              value={departureCountry.code}
-              onChange={(e) => handleDepartureChange(e.target.value)}
-              className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white font-semibold focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED] transition"
-            >
-              {COUNTRIES.map((country) => (
-                <option key={country.code} value={country.code} className="text-gray-900">
-                  {country.name} ({country.city} - {getModeLocationCode(country, transportMode)})
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-white/50 mt-2">
-              Selected: <span className="text-[#7C3AED]">{getModeLocation(departureCountry, transportMode)}</span>
-            </p>
-          </div>
+        <p className="text-xs text-white/45 mb-3">
+          Pick the exact province &amp; city — the customer will see the parcel routed to that
+          location, and the tracking map zooms in and pinpoints it on arrival.
+        </p>
 
-          {/* Destination Country */}
-          <div className="p-3 bg-white/10 rounded-lg border border-white/20">
-            <label className="block text-sm font-medium text-white/80 mb-2">
-              Destination Country / {terminalLabel}
-            </label>
-            <select
-              value={destinationCountry.code}
-              onChange={(e) => handleDestinationChange(e.target.value)}
-              className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white font-semibold focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED] transition"
-            >
-              {COUNTRIES.map((country) => (
-                <option key={country.code} value={country.code} className="text-gray-900">
-                  {country.name} ({country.city} - {getModeLocationCode(country, transportMode)})
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-white/50 mt-2">
-              Selected: <span className="text-[#7C3AED]">{getModeLocation(destinationCountry, transportMode)}</span>
-            </p>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <LocationPicker
+            label={`Departure — Country / Province / City (${terminalLabel})`}
+            countries={COUNTRIES}
+            value={departureSel}
+            onChange={handleDeparturePick}
+          />
+          <LocationPicker
+            label={`Destination — Country / Province / City (${terminalLabel})`}
+            countries={COUNTRIES}
+            value={destinationSel}
+            onChange={handleDestinationPick}
+          />
         </div>
 
         {/* Route Preview */}
         <div className="mt-4 p-3 bg-[#7C3AED]/10 rounded-lg border border-[#7C3AED]/30">
-          <div className="flex items-center justify-center gap-4 text-sm">
-            <div className="text-center">
-              <span className="block text-[#7C3AED] font-bold text-lg">{departureCountry.city}</span>
-              <span className="text-white/60 text-xs">{departureCountry.name}</span>
+          <div className="flex items-center justify-center gap-2 sm:gap-4 text-sm">
+            <div className="min-w-0 flex-1 text-center">
+              <span className="block truncate text-[#7C3AED] font-bold text-base sm:text-lg">{departureSel.city || departureCountry.city}</span>
+              <span className="block truncate text-white/60 text-xs">{[departureSel.province, departureCountry.name].filter(Boolean).join(', ')}</span>
             </div>
-            
-            <div className="flex items-center gap-2">
+
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
               <span className="text-[#7C3AED] text-xs font-semibold">{routeSymbol}</span>
-              <div className="w-16 h-0.5 bg-[#7C3AED]/50"></div>
+              <div className="w-5 sm:w-16 h-0.5 bg-[#7C3AED]/50"></div>
               <span className="text-white/40">-&gt;</span>
-              <div className="w-16 h-0.5 bg-[#7C3AED]/50"></div>
+              <div className="w-5 sm:w-16 h-0.5 bg-[#7C3AED]/50"></div>
               <span className="text-[#7C3AED] text-xs font-semibold">{routeSymbol}</span>
             </div>
-            
-            <div className="text-center">
-              <span className="block text-[#7C3AED] font-bold text-lg">{destinationCountry.city}</span>
-              <span className="text-white/60 text-xs">{destinationCountry.name}</span>
+
+            <div className="min-w-0 flex-1 text-center">
+              <span className="block truncate text-[#7C3AED] font-bold text-base sm:text-lg">{destinationSel.city || destinationCountry.city}</span>
+              <span className="block truncate text-white/60 text-xs">{[destinationSel.province, destinationCountry.name].filter(Boolean).join(', ')}</span>
             </div>
           </div>
         </div>
