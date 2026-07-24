@@ -833,9 +833,10 @@ export default function TrackContent({ initialId }: { initialId: string }) {
         </aside>
 
         {/* ── RIGHT PANEL: MAP ─────────────────────────────────────────────── */}
+        <div className="flex flex-1 flex-col lg:min-h-0">
         <div
           ref={mapShellRef}
-          className="flex-1 relative mx-4 mb-4 h-[360px] min-h-[360px] overflow-hidden rounded-2xl border border-[#7C3AED]/25 shadow-[0_18px_36px_rgba(0,0,0,0.28)] sm:h-[420px] sm:min-h-[420px] lg:m-0 lg:h-auto lg:min-h-0 lg:rounded-none lg:border-0 lg:shadow-none"
+          className="relative mx-4 mb-4 h-[360px] min-h-[360px] overflow-hidden rounded-2xl border border-[#7C3AED]/25 shadow-[0_18px_36px_rgba(0,0,0,0.28)] sm:h-[420px] sm:min-h-[420px] lg:m-0 lg:h-auto lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0 lg:shadow-none"
         >
 
           {/* Map fills entire right panel */}
@@ -929,10 +930,12 @@ export default function TrackContent({ initialId }: { initialId: string }) {
             </div>
           )}
 
-          {/* Bottom overlay: Journey timeline + Route card */}
+          </div>
+
+          {/* Journey timeline + Route card — sit BELOW the map so they never cover it */}
           {state === 'success' && result && (
             <div
-              className="absolute bottom-0 left-0 right-0 hidden gap-3 p-4 z-20 lg:flex dashboard-fade-up"
+              className="hidden shrink-0 gap-3 px-4 pt-3 pb-4 lg:flex dashboard-fade-up"
               style={{ animationDelay: '180ms' }}
             >
               {/* Journey Timeline */}
@@ -943,7 +946,6 @@ export default function TrackContent({ initialId }: { initialId: string }) {
                   border: '1px solid rgba(124,58,237,0.22)',
                   backdropFilter: 'blur(18px)',
                   boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-                  maxWidth: '56%',
                 }}
               >
                 <div className="flex items-center gap-2 mb-2.5">
@@ -989,7 +991,7 @@ export default function TrackContent({ initialId }: { initialId: string }) {
                   border: '1px solid rgba(124,58,237,0.22)',
                   backdropFilter: 'blur(18px)',
                   boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-                  width: '230px',
+                  width: '260px',
                 }}
               >
                 <div className="flex items-center gap-2 mb-3">
