@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import type { StoredWaybill, TrackingEventRecord } from '@/lib/types'
-import { computeRuntimeTrackingState, normalizeTrackingEvents } from '@/lib/trackingAutomation'
+import {
+  applyStageJump,
+  computeRuntimeTrackingState,
+  isTerminalStatus,
+  normalizeTrackingEvents,
+} from '@/lib/trackingAutomation'
 import {
   getWaybillByNumber,
   getWaybillErrorMessage,
@@ -73,6 +78,9 @@ function toPersistedEvents(events: EditableTimelineEvent[]): TrackingEventRecord
     eventTime: event.eventTime,
     isHold: Boolean(event.isHold),
     holdReason: event.isHold ? (event.holdReason?.trim() || undefined) : undefined,
+    // Preserve map coordinates so editing a timeline never breaks the route trail.
+    ...(typeof event.lat === 'number' ? { lat: event.lat } : {}),
+    ...(typeof event.lng === 'number' ? { lng: event.lng } : {}),
   }))
 }
 
@@ -99,9 +107,12 @@ export function AdminTimelineControlPanel() {
   const [lastLookupAttempt, setLastLookupAttempt] = useState('')
   const [loadedWaybill, setLoadedWaybill] = useState<StoredWaybill | null>(null)
   const [events, setEvents] = useState<EditableTimelineEvent[]>([])
+  const [jumpIndex, setJumpIndex] = useState(0)
 
   const runtime = useMemo(() => computeRuntimeTrackingState(events), [events])
   const hasLoadedWaybill = loadedWaybill !== null
+  const safeJumpIndex = Math.min(Math.max(jumpIndex, 0), Math.max(events.length - 1, 0))
+  const holdMissingReason = events.some((event) => event.isHold && !(event.holdReason ?? '').trim())
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -139,6 +150,7 @@ export function AdminTimelineControlPanel() {
       setLoadedWaybill(waybill)
       setLookupValue(waybill.waybillNumber || query)
       setEvents(makeEditableEvents(sourceEvents))
+      setJumpIndex(Math.max(computeRuntimeTrackingState(sourceEvents).activeEventIndex, 0))
       setFeedback(`Loaded waybill ${waybill.waybillNumber}. You can now control its timeline.`)
     } catch (loadError) {
       console.error(loadError)
@@ -206,6 +218,33 @@ export function AdminTimelineControlPanel() {
     setEvents((prev) => prev.map((event) => ({ ...event, isHold: false, holdReason: undefined })))
   }
 
+  // ── Move the shipment to any stage ─────────────────────────────────────────
+  // Stamps the chosen stage "now", back-dates earlier stages and reschedules
+  // later ones with their original spacing, so tracking keeps advancing.
+  const jumpToStage = (index: number) => {
+    const target = events[index]
+    if (!target) return
+    const jumped = applyStageJump(toPersistedEvents(events), index)
+    setEvents(makeEditableEvents(jumped))
+    setJumpIndex(Math.min(index, Math.max(jumped.length - 1, 0)))
+    setError(null)
+    setFeedback(
+      isTerminalStatus(target.status)
+        ? `Shipment moved to "${target.status}". The timeline is now complete and will not advance further. Save to publish.`
+        : `Shipment moved to "${target.status}". Remaining stages were rescheduled and will continue automatically. Save to publish.`
+    )
+  }
+
+  // Pause at whatever stage is currently live.
+  const pauseNow = () => {
+    const index = runtime.activeEventIndex >= 0 ? runtime.activeEventIndex : 0
+    const target = events[index]
+    if (!target) return
+    applyHold(target.id, '')
+    setError(null)
+    setFeedback(`Timeline paused at "${target.status}". Select a hold reason below — it is required before saving.`)
+  }
+
   const addEventAfter = (index: number) => {
     setEvents((prev) => {
       const reference = prev[index]
@@ -246,6 +285,10 @@ export function AdminTimelineControlPanel() {
     if (!loadedWaybill) return
     if (events.length === 0) {
       setError('Timeline must have at least one event before saving.')
+      return
+    }
+    if (holdMissingReason) {
+      setError('A paused stage needs a hold reason before saving — customers see this on the tracking page.')
       return
     }
     setIsSaving(true)
@@ -360,8 +403,47 @@ export function AdminTimelineControlPanel() {
             )}
           </div>
 
+          {/* Move shipment to any stage */}
+          <div className="rounded-xl border border-[#7C3AED]/35 bg-[#0f2740] p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-[#7C3AED]">Move Shipment To Stage</p>
+            <p className="mt-1 text-xs leading-relaxed text-white/55">
+              Jump the shipment to any milestone. Earlier stages are back-dated and later stages are
+              rescheduled with their original spacing, so tracking keeps advancing on its own from there.
+              Choosing a delivered stage stops the timeline permanently.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <select
+                value={safeJumpIndex}
+                onChange={(e) => setJumpIndex(Number(e.target.value))}
+                className="logistics-input-control flex-1 px-3 py-2 text-sm"
+              >
+                {events.map((event, index) => (
+                  <option key={event.id} value={index}>
+                    {index + 1}. {event.status}{isTerminalStatus(event.status) ? '  — stops timeline' : ''}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => jumpToStage(safeJumpIndex)}
+                className="admin-action-secondary shrink-0 rounded-xl px-4 py-2 text-sm font-semibold"
+              >
+                Move to this stage
+              </button>
+            </div>
+          </div>
+
           {/* Action bar */}
           <div className="flex flex-wrap gap-2">
+            {!runtime.isOnHold && (
+              <button
+                type="button"
+                onClick={pauseNow}
+                className="rounded-lg border border-amber-300/40 bg-amber-500/15 px-3 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/25 transition-colors"
+              >
+                ⏸ Pause Timeline Now
+              </button>
+            )}
             {runtime.isOnHold && (
               <button
                 type="button"
@@ -391,6 +473,11 @@ export function AdminTimelineControlPanel() {
             >
               {isSaving ? 'Saving…' : 'Save Timeline Changes'}
             </button>
+            {holdMissingReason && (
+              <p className="w-full text-xs font-semibold text-amber-300">
+                ⚠ Add a hold reason to the paused stage before saving — customers see it on the tracking page.
+              </p>
+            )}
           </div>
 
           {/* Timeline events */}

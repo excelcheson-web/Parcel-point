@@ -30,6 +30,11 @@ export default function ChatPage() {
   const [inputText, setInputText] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  // This page is statically prerendered, so a timestamp rendered during SSR is
+  // baked at build time and never matches the client clock. Render times only
+  // after mount to keep hydration consistent.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -190,7 +195,7 @@ export default function ChatPage() {
                 >
                   <p className="leading-relaxed whitespace-pre-line">{message.text}</p>
                   <p className={`text-xs mt-2 ${message.sender === 'user' ? 'text-white/70' : 'text-white/40'}`}>
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {mounted ? message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                   </p>
                 </div>
               </div>

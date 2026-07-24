@@ -40,6 +40,61 @@ export function normalizeTrackingEvents(events: TrackingEventRecord[], fallbackL
   return Array.from(unique.values()).sort((a, b) => Date.parse(a.eventTime) - Date.parse(b.eventTime))
 }
 
+/** Terminal stages end the journey — nothing is ever scheduled after them. */
+export function isTerminalStatus(status?: string): boolean {
+  const s = (status ?? '').toLowerCase()
+  return s.includes('delivered') || s.includes('picked up')
+}
+
+const DEFAULT_STAGE_GAP_MS = 4 * 60 * 60 * 1000
+
+/**
+ * Move a shipment to an arbitrary stage of its timeline.
+ *
+ * The chosen stage is stamped "now"; earlier stages are back-dated and later
+ * stages are scheduled into the future, both preserving the original spacing
+ * between milestones — so the shipment keeps advancing on its own from there.
+ *
+ * Any active hold is cleared (moving it means it is running again). If the
+ * chosen stage is terminal (Delivered / Picked Up) nothing is scheduled after
+ * it and any later stages are dropped, so the timeline stops immediately.
+ */
+export function applyStageJump(
+  events: TrackingEventRecord[],
+  targetIndex: number,
+  now: Date = new Date(),
+): TrackingEventRecord[] {
+  const normalized = normalizeTrackingEvents(events)
+  if (normalized.length === 0) return normalized
+
+  const idx = Math.min(Math.max(targetIndex, 0), normalized.length - 1)
+  const nowMs = now.getTime()
+
+  // Original spacing between consecutive milestones.
+  const gaps = normalized.map((event, i) => {
+    if (i === 0) return 0
+    const prev = Date.parse(normalized[i - 1].eventTime)
+    const current = Date.parse(event.eventTime)
+    const delta = current - prev
+    return Number.isFinite(delta) && delta > 0 ? delta : DEFAULT_STAGE_GAP_MS
+  })
+
+  // Terminal stage => drop anything after it so it can never advance further.
+  const list = isTerminalStatus(normalized[idx].status) ? normalized.slice(0, idx + 1) : normalized
+
+  const times = new Array<number>(list.length)
+  times[idx] = nowMs
+  for (let i = idx - 1; i >= 0; i -= 1) times[i] = times[i + 1] - (gaps[i + 1] || DEFAULT_STAGE_GAP_MS)
+  for (let i = idx + 1; i < list.length; i += 1) times[i] = times[i - 1] + (gaps[i] || DEFAULT_STAGE_GAP_MS)
+
+  return list.map((event, i) => ({
+    ...event,
+    eventTime: new Date(times[i]).toISOString(),
+    isHold: false,
+    holdReason: undefined,
+  }))
+}
+
 export function computeRuntimeTrackingState(events: TrackingEventRecord[], now: Date = new Date()): RuntimeTrackingState {
   const normalized = normalizeTrackingEvents(events)
   if (normalized.length === 0) {

@@ -8,6 +8,7 @@ import { LineItemsManager } from './LineItemsManager'
 import { getCarrierDisplayName, COUNTRIES } from '@/lib/constants'
 import { LocationPicker, type PickedLocation } from './LocationPicker'
 import { hasGeoDetail } from '@/lib/geo/geoData'
+import { applyStageJump, isTerminalStatus } from '@/lib/trackingAutomation'
 import type { WaybillFormData } from '@/lib/types'
 import {
   type DeliveryType,
@@ -194,6 +195,8 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       estimatedDeliveryDate: smartDefaults.estimatedArrivalDate,
     })
   )
+  // Stage the shipment starts at when it is created (0 = very beginning).
+  const [startStageIndex, setStartStageIndex] = useState(0)
 
   const selCoords = useCallback((sel: PickedLocation) => (
     typeof sel.lat === 'number' && typeof sel.lng === 'number' ? { lat: sel.lat, lng: sel.lng } : undefined
@@ -351,7 +354,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
 
       setProjectedTimeline(timelineForWaybill)
 
-      const localTimelineForWaybill = timelineForWaybill.map((event) => ({
+      const baseTimeline = timelineForWaybill.map((event) => ({
         status: event.status,
         location: event.location,
         description: event.description,
@@ -359,6 +362,13 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
         isHold: event.isHold,
         ...(typeof event.lat === 'number' && typeof event.lng === 'number' ? { lat: event.lat, lng: event.lng } : {}),
       }))
+
+      // Start the shipment at the chosen stage: earlier milestones are back-dated
+      // and later ones stay in the future so tracking keeps advancing on its own.
+      // A delivered stage drops everything after it, stopping the timeline.
+      const safeStartStage = Math.min(Math.max(startStageIndex, 0), Math.max(baseTimeline.length - 1, 0))
+      const localTimelineForWaybill =
+        safeStartStage > 0 ? applyStageJump(baseTimeline, safeStartStage) : baseTimeline
 
       const geoFields: Partial<WaybillFormData> = {
         originCity: departureSel.city,
@@ -923,6 +933,27 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
               Apply Arrival Date
             </button>
           </div>
+        </div>
+
+        {/* Start the shipment part-way through the timeline */}
+        <div className="mb-4 rounded-lg border border-[#7C3AED]/35 bg-[#7C3AED]/10 p-3">
+          <label className="block text-sm font-medium text-white/80 mb-1">Start Shipment At Stage</label>
+          <p className="text-xs text-white/50 mb-2">
+            Create this waybill already part-way through its journey. Earlier stages are back-dated and
+            later stages keep advancing automatically. Choosing a delivered stage completes it immediately.
+          </p>
+          <select
+            value={Math.min(startStageIndex, Math.max(projectedTimeline.length - 1, 0))}
+            onChange={(e) => setStartStageIndex(Number(e.target.value))}
+            className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white focus:ring-2 focus:ring-[#7C3AED] focus:border-[#7C3AED]"
+          >
+            {projectedTimeline.map((event, index) => (
+              <option key={event.id} value={index} className="text-gray-900">
+                {index === 0 ? 'Beginning — ' : `${index + 1}. `}{event.status}
+                {isTerminalStatus(event.status) ? '  — completes shipment' : ''}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">

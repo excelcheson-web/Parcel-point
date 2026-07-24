@@ -382,7 +382,18 @@ export default function TrackContent({ initialId }: { initialId: string }) {
     [result],
   )
 
-  const runtime = useMemo(() => (result ? computeRuntimeTrackingState(result.trackingEvents ?? []) : null), [result])
+  // Re-evaluate the timeline periodically so a milestone that becomes due while
+  // the page sits open advances on its own, without the customer reloading.
+  const [nowTs, setNowTs] = useState(() => Date.now())
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTs(Date.now()), 60_000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  const runtime = useMemo(
+    () => (result ? computeRuntimeTrackingState(result.trackingEvents ?? [], new Date(nowTs)) : null),
+    [result, nowTs],
+  )
   const currentStatus = runtime?.currentStatus ?? result?.currentStatus ?? 'Unknown Status'
   const currentLocation = runtime?.currentLocation ?? result?.currentLocation ?? result?.destination ?? ''
   const step = result ? getStep(currentStatus) : 0
@@ -840,7 +851,7 @@ export default function TrackContent({ initialId }: { initialId: string }) {
         >
 
           {/* Map fills entire right panel */}
-          <DashboardMap waybill={result} state={state} serviceType={serviceType} mapView={mapView} zoom={mapZoom} />
+          <DashboardMap waybill={result} state={state} serviceType={serviceType} mapView={mapView} zoom={mapZoom} now={nowTs} />
 
           {/* Map / Satellite toggle + controls */}
           <div className="absolute top-3 right-3 flex flex-col items-end gap-2 z-30 lg:top-4 lg:right-4">

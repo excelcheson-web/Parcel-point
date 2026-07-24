@@ -168,6 +168,8 @@ export interface DashboardMapProps {
   serviceType?: MapServiceType
   mapView?: 'map' | 'satellite'
   zoom?: number
+  /** Ticking timestamp so the vehicle advances as milestones fall due. */
+  now?: number
 }
 
 function AirVehicle() {
@@ -241,14 +243,14 @@ function pointAlongPolyline(pts: [number, number][], f: number): { pt: [number, 
   return { pt: pts[pts.length - 1], angle: 0 }
 }
 
-export default function DashboardMap({ waybill, state, serviceType = 'AIR', mapView = 'map', zoom = 1 }: DashboardMapProps) {
+export default function DashboardMap({ waybill, state, serviceType = 'AIR', mapView = 'map', zoom = 1, now }: DashboardMapProps) {
   const isSatellite = mapView === 'satellite'
 
   // ── Resolve everything about the route from the waybill ────────────────────
   const model = useMemo<RouteModel | null>(() => {
     if (!waybill) return null
     const route = resolveTrackingRoute(waybill)
-    const runtime = computeRuntimeTrackingState(waybill.trackingEvents ?? [])
+    const runtime = computeRuntimeTrackingState(waybill.trackingEvents ?? [], now ? new Date(now) : new Date())
 
     const destCode = (waybill.destCountryCode || iso2FromName(route.entry.country))?.toUpperCase()
     const destIdx = getGeoIndexEntry(destCode)
@@ -317,7 +319,7 @@ export default function DashboardMap({ waybill, state, serviceType = 'AIR', mapV
       status,
       fallbackProgress: statusToProgress(runtime.currentStatus || waybill.currentStatus),
     }
-  }, [waybill])
+  }, [waybill, now])
 
   // ── Lazy-load destination country geo ONLY once the parcel has entered ──────
   // Tagged with its country code so `destGeo` can be derived (no sync setState).
